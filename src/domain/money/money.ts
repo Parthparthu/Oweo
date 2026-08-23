@@ -8,13 +8,15 @@
  */
 export function rupeesToPaise(rupees: number | string): number {
   if (typeof rupees === 'string') {
-    const cleaned = rupees.replace(/,/g, '').trim()
+    const cleaned = rupees.replace(/[₹,\s]/g, '').trim()
     const parsed = parseFloat(cleaned)
     if (isNaN(parsed) || !isFinite(parsed)) return 0
-    return Math.round(parsed * 100)
+    const rounded = Math.round(parsed * 100)
+    return Object.is(rounded, -0) ? 0 : rounded
   }
   if (isNaN(rupees) || !isFinite(rupees)) return 0
-  return Math.round(rupees * 100)
+  const rounded = Math.round(rupees * 100)
+  return Object.is(rounded, -0) ? 0 : rounded
 }
 
 /**
@@ -22,7 +24,8 @@ export function rupeesToPaise(rupees: number | string): number {
  */
 export function paiseToRupees(paise: number): number {
   if (!isFinite(paise) || isNaN(paise)) return 0
-  return Math.round(paise) / 100
+  const rounded = Math.round(paise) / 100
+  return Object.is(rounded, -0) ? 0 : rounded
 }
 
 /**
@@ -42,18 +45,29 @@ export function formatINR(
 ): string {
   const { showPaiseIfZero = false, compact = false, absolute = false } = options
   const safePaise = isFinite(paise) && !isNaN(paise) ? Math.round(paise) : 0
-  const isNegative = safePaise < 0
-  const val = absolute ? Math.abs(safePaise) : Math.abs(safePaise)
+  const normalizedPaise = Object.is(safePaise, -0) || safePaise === 0 ? 0 : safePaise
+  const isNegative = normalizedPaise < 0
+  const val = Math.abs(normalizedPaise)
   const rupees = val / 100
 
-  if (compact && rupees >= 10000000) {
-    return `${isNegative && !absolute ? '-' : ''}₹${(rupees / 10000000).toFixed(2)} Cr`
-  }
-  if (compact && rupees >= 100000) {
-    return `${isNegative && !absolute ? '-' : ''}₹${(rupees / 100000).toFixed(2)} L`
-  }
-  if (compact && rupees >= 1000) {
-    return `${isNegative && !absolute ? '-' : ''}₹${(rupees / 1000).toFixed(1)}k`
+  const prefix = isNegative && !absolute ? '-' : ''
+
+  if (compact) {
+    if (rupees >= 10000000) {
+      const cr = rupees / 10000000
+      const formatted = cr % 1 === 0 ? cr.toFixed(0) : cr.toFixed(2)
+      return `${prefix}₹${formatted} Cr`
+    }
+    if (rupees >= 100000) {
+      const l = rupees / 100000
+      const formatted = l % 1 === 0 ? l.toFixed(0) : l.toFixed(2)
+      return `${prefix}₹${formatted} L`
+    }
+    if (rupees >= 1000) {
+      const k = rupees / 1000
+      const formatted = k % 1 === 0 ? k.toFixed(0) : k.toFixed(1)
+      return `${prefix}₹${formatted}k`
+    }
   }
 
   const hasFractions = val % 100 !== 0
@@ -73,19 +87,22 @@ export function formatINR(
  * Returns null if invalid or negative when not allowed.
  */
 export function parseAmountInput(input: string, allowNegative = false): number | null {
-  if (!input || input.trim() === '') return null
+  if (!input || typeof input !== 'string' || input.trim() === '') return null
   const sanitized = input.replace(/[₹,\s]/g, '').trim()
   const num = parseFloat(sanitized)
   if (isNaN(num) || !isFinite(num)) return null
   if (!allowNegative && num < 0) return null
-  return Math.round(num * 100)
+  const paise = Math.round(num * 100)
+  return Object.is(paise, -0) ? 0 : paise
 }
 
 /**
  * Formats a paise number for an editable form input (e.g. 180.5 or 180)
  */
 export function paiseToInputString(paise: number): string {
-  if (!paise || isNaN(paise)) return ''
-  const rupees = paise / 100
+  if (paise === undefined || paise === null || isNaN(paise) || !isFinite(paise)) return ''
+  const normalized = Object.is(paise, -0) ? 0 : Math.round(paise)
+  if (normalized === 0) return ''
+  const rupees = normalized / 100
   return Number.isInteger(rupees) ? rupees.toString() : rupees.toFixed(2)
 }

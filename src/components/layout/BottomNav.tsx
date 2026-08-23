@@ -58,9 +58,9 @@ export const BottomNav: React.FC = () => {
                   }}
                   animate={{
                     boxShadow: [
-                      '0 4px 16px hsl(173 80% 36% / 0.4)',
-                      '0 4px 24px hsl(173 80% 36% / 0.6)',
-                      '0 4px 16px hsl(173 80% 36% / 0.4)',
+                      '0 4px 16px hsl(var(--primary) / 0.4)',
+                      '0 4px 24px hsl(var(--primary) / 0.6)',
+                      '0 4px 16px hsl(var(--primary) / 0.4)',
                     ],
                   }}
                   transition={{

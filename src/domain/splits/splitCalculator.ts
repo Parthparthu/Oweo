@@ -101,6 +101,13 @@ export function calculatePercentageSplit(
         errorMessage: 'Percentage cannot be negative',
       }
     }
+    if (pct > 100) {
+      return {
+        isValid: false,
+        shares: {},
+        errorMessage: 'Percentage cannot exceed 100%',
+      }
+    }
     totalPercent += pct
   }
 
@@ -115,21 +122,27 @@ export function calculatePercentageSplit(
     }
   }
 
-  // Calculate raw paise per user
+  // Calculate raw paise and fractional remainder per user
   const shares: Record<string, number> = {}
+  const fractions: Array<{ uid: string; frac: number }> = []
   let currentSum = 0
 
   userIds.forEach((uid) => {
-    const rawPaise = Math.floor((totalPaise * (percentages[uid] || 0)) / 100)
+    const exactPaise = (totalPaise * (percentages[uid] || 0)) / 100
+    const rawPaise = Math.floor(exactPaise)
     shares[uid] = rawPaise
     currentSum += rawPaise
+    fractions.push({ uid, frac: exactPaise - rawPaise })
   })
 
-  // Distribute leftover paise residue to participants with highest percentage or first users
+  // Distribute leftover paise residue using Hamilton-Hare Largest Remainder Method
   let residue = totalPaise - currentSum
+  fractions.sort((a, b) => b.frac - a.frac)
+
   let idx = 0
-  while (residue > 0 && idx < userIds.length) {
-    shares[userIds[idx]] += 1
+  while (residue > 0 && fractions.length > 0) {
+    const targetUid = fractions[idx % fractions.length].uid
+    shares[targetUid] += 1
     residue -= 1
     idx += 1
   }

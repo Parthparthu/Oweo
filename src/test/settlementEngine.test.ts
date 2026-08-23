@@ -109,4 +109,43 @@ describe('Settlement & Debt Simplification Engine', () => {
     // All payments should come from A (u1)
     expect(proposed.every((p) => p.fromUserId === 'u1')).toBe(true)
   })
+
+  it('handles already settled groups with zero proposed settlements', () => {
+    const balances: MemberBalance[] = [
+      { userId: 'u1', displayName: 'A', netBalancePaise: 0, totalPaidPaise: 1000, totalOwedPaise: 1000 },
+      { userId: 'u2', displayName: 'B', netBalancePaise: 0, totalPaidPaise: 1000, totalOwedPaise: 1000 },
+    ]
+
+    const proposed = simplifyDebts(balances)
+    expect(proposed).toHaveLength(0)
+  })
+
+  it('simplifies complex 5-member debt matrix into minimal payments', () => {
+    // 5 members:
+    // u1 paid 5000 for all 5 (1000 each) -> u1 = +4000
+    // u2 paid 3000 for u2, u3, u4 (1000 each) -> u2 paid 3000, owes 1000 (from u1's exp) + 1000 = 2000 -> u2 = +1000
+    // u3 owes 1000 to u1 + 1000 to u2 = -2000
+    // u4 owes 1000 to u1 + 1000 to u2 = -2000
+    // u5 owes 1000 to u1 = -1000
+    // Total creditors (+4000 + +1000 = +5000), total debtors (-2000 + -2000 + -1000 = -5000)
+    const balances: MemberBalance[] = [
+      { userId: 'u1', displayName: 'User 1', netBalancePaise: 400000, totalPaidPaise: 500000, totalOwedPaise: 100000 },
+      { userId: 'u2', displayName: 'User 2', netBalancePaise: 100000, totalPaidPaise: 300000, totalOwedPaise: 200000 },
+      { userId: 'u3', displayName: 'User 3', netBalancePaise: -200000, totalPaidPaise: 0, totalOwedPaise: 200000 },
+      { userId: 'u4', displayName: 'User 4', netBalancePaise: -200000, totalPaidPaise: 0, totalOwedPaise: 200000 },
+      { userId: 'u5', displayName: 'User 5', netBalancePaise: -100000, totalPaidPaise: 0, totalOwedPaise: 100000 },
+    ]
+
+    const proposed = simplifyDebts(balances)
+
+    // Total settlements sum must be 500000 paise (₹5,000)
+    const totalSettled = proposed.reduce((acc, p) => acc + p.amountPaise, 0)
+    expect(totalSettled).toBe(500000)
+
+    // No one should settle with themselves
+    proposed.forEach((p) => {
+      expect(p.fromUserId).not.toBe(p.toUserId)
+      expect(p.amountPaise).toBeGreaterThan(0)
+    })
+  })
 })

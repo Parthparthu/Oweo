@@ -34,6 +34,29 @@ describe('Split Calculator Engine', () => {
     expect(sum).toBe(10000)
   })
 
+  it('handles 7-way split with exact remainder conservation', () => {
+    const totalPaise = 10000 // ₹100
+    const participants = ['u1', 'u2', 'u3', 'u4', 'u5', 'u6', 'u7']
+    const result = calculateEqualSplit(totalPaise, participants)
+
+    // 10000 / 7 = 1428 with remainder 4 -> u1..u4 get 1429, u5..u7 get 1428
+    expect(result['u1']).toBe(1429)
+    expect(result['u2']).toBe(1429)
+    expect(result['u3']).toBe(1429)
+    expect(result['u4']).toBe(1429)
+    expect(result['u5']).toBe(1428)
+    expect(result['u6']).toBe(1428)
+    expect(result['u7']).toBe(1428)
+
+    const sum = Object.values(result).reduce((a, b) => a + b, 0)
+    expect(sum).toBe(10000)
+  })
+
+  it('handles empty participants or zero total gracefully', () => {
+    expect(calculateEqualSplit(0, ['u1'])).toEqual({})
+    expect(calculateEqualSplit(1000, [])).toEqual({})
+  })
+
   it('validates custom exact amount split', () => {
     const totalPaise = 80000 // ₹800
     const validShares = {
@@ -56,6 +79,10 @@ describe('Split Calculator Engine', () => {
     const invalidRes = validateCustomSplit(totalPaise, invalidShares)
     expect(invalidRes.isValid).toBe(false)
     expect(invalidRes.discrepancyPaise).toBe(15000)
+
+    const negativeRes = validateCustomSplit(totalPaise, { u1: -100, u2: 80100 })
+    expect(negativeRes.isValid).toBe(false)
+    expect(negativeRes.errorMessage).toContain('negative')
   })
 
   it('calculates and validates percentage split with exact sum matching', () => {
@@ -78,7 +105,21 @@ describe('Split Calculator Engine', () => {
     expect(sum).toBe(100000)
   })
 
-  it('rejects invalid percentages that do not sum to 100%', () => {
+  it('handles percentage split with fractional remainder using Largest Remainder Method', () => {
+    const totalPaise = 10000 // ₹100
+    const percentages = {
+      u1: 33.33,
+      u2: 33.33,
+      u3: 33.34,
+    }
+
+    const res = calculatePercentageSplit(totalPaise, percentages)
+    expect(res.isValid).toBe(true)
+    const sum = Object.values(res.shares).reduce((a, b) => a + b, 0)
+    expect(sum).toBe(10000)
+  })
+
+  it('rejects invalid percentages that do not sum to 100% or contain negatives', () => {
     const totalPaise = 100000
     const percentages = {
       u1: 40,
@@ -89,5 +130,13 @@ describe('Split Calculator Engine', () => {
     const res = calculatePercentageSplit(totalPaise, percentages)
     expect(res.isValid).toBe(false)
     expect(res.errorMessage).toContain('30.0% remaining')
+
+    const negRes = calculatePercentageSplit(totalPaise, { u1: -10, u2: 110 })
+    expect(negRes.isValid).toBe(false)
+    expect(negRes.errorMessage).toContain('negative')
+
+    const overRes = calculatePercentageSplit(totalPaise, { u1: 110 })
+    expect(overRes.isValid).toBe(false)
+    expect(overRes.errorMessage).toContain('exceed 100%')
   })
 })

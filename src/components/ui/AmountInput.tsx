@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react'
 import { clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { rupeesToPaise, paiseToInputString } from '@/domain/money/money'
 
 interface AmountInputProps {
   value: string
@@ -47,10 +48,11 @@ export const AmountInput: React.FC<AmountInputProps> = ({
     onChange(val)
   }
 
-  const addAmount = (increment: number) => {
-    const current = parseFloat(value) || 0
-    const next = current + increment
-    onChange(next.toString())
+  const addAmount = (incrementRupees: number) => {
+    const currentPaise = rupeesToPaise(value)
+    const nextPaise = currentPaise + incrementRupees * 100
+    const str = paiseToInputString(nextPaise) || (nextPaise / 100).toString()
+    onChange(str)
     inputRef.current?.focus()
   }
 
@@ -67,6 +69,7 @@ export const AmountInput: React.FC<AmountInputProps> = ({
           type="text"
           inputMode="decimal"
           pattern="[0-9]*"
+          aria-label="Expense amount in rupees"
           value={value}
           onChange={handleInputChange}
           placeholder={placeholder}

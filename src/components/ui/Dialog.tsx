@@ -7,7 +7,7 @@
  *  + Backdrop fades in, dialog scales up with spring
  *  + Close button gets hover/tap feedback
  */
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { X } from 'lucide-react'
@@ -42,17 +42,65 @@ export const Dialog: React.FC<DialogProps> = ({
   maxWidth = 'md',
   showCloseButton = true,
 }) => {
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const previousActiveElement = useRef<HTMLElement | null>(null)
+
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) onClose()
-    }
     if (isOpen) {
+      previousActiveElement.current = document.activeElement as HTMLElement | null
       document.body.style.overflow = 'hidden'
+
+      const timer = setTimeout(() => {
+        const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+        if (focusable && focusable.length > 0) {
+          // If the first element is close button and there's another input, focus the input or first
+          if (focusable.length > 1 && focusable[0].getAttribute('aria-label') === 'Close dialog') {
+            focusable[1].focus()
+          } else {
+            focusable[0].focus()
+          }
+        }
+      }, 50)
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          onClose()
+          return
+        }
+
+        if (e.key === 'Tab' && dialogRef.current) {
+          const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+          if (!focusable.length) return
+
+          const firstElement = focusable[0]
+          const lastElement = focusable[focusable.length - 1]
+
+          if (e.shiftKey) {
+            if (document.activeElement === firstElement) {
+              lastElement.focus()
+              e.preventDefault()
+            }
+          } else {
+            if (document.activeElement === lastElement) {
+              firstElement.focus()
+              e.preventDefault()
+            }
+          }
+        }
+      }
+
       window.addEventListener('keydown', handleKeyDown)
-    }
-    return () => {
-      document.body.style.overflow = ''
-      window.removeEventListener('keydown', handleKeyDown)
+
+      return () => {
+        clearTimeout(timer)
+        document.body.style.overflow = ''
+        window.removeEventListener('keydown', handleKeyDown)
+        previousActiveElement.current?.focus?.()
+      }
     }
   }, [isOpen, onClose])
 
@@ -73,6 +121,7 @@ export const Dialog: React.FC<DialogProps> = ({
 
           {/* Dialog body */}
           <motion.div
+            ref={dialogRef}
             role="dialog"
             aria-modal="true"
             className={twMerge(
