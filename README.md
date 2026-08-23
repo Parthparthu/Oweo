@@ -428,6 +428,29 @@ VITE_FIREBASE_APP_ID=your_app_id
 | `npm run build` | Compiles the production bundle & PWA service worker |
 | `npm run preview` | Previews the compiled production build locally |
 
+### 5. Automated GitHub Pages Deployment
+
+Oweo is configured for continuous deployment to GitHub Pages via GitHub Actions:
+
+1. **GitHub Repository Settings**:
+   - Navigate to **Settings → Pages**.
+   - Under **Build and deployment → Source**, select **GitHub Actions**.
+2. **GitHub Secrets (Optional / Production Auth)**:
+   - Navigate to **Settings → Secrets and variables → Actions**.
+   - Add your Firebase keys as Repository Secrets:
+     - `VITE_FIREBASE_API_KEY`
+     - `VITE_FIREBASE_AUTH_DOMAIN`
+     - `VITE_FIREBASE_PROJECT_ID`
+     - `VITE_FIREBASE_STORAGE_BUCKET`
+     - `VITE_FIREBASE_MESSAGING_SENDER_ID`
+     - `VITE_FIREBASE_APP_ID`
+     - `VITE_FIREBASE_MEASUREMENT_ID`
+3. **Firebase Authorized Domains**:
+   - In the [Firebase Console](https://console.firebase.google.com/), navigate to **Authentication → Settings → Authorized domains**.
+   - Add `parthparthu.github.io` to allow Google Sign-In popups in production.
+4. **Deploy**:
+   - Every `git push` to `main` automatically triggers `.github/workflows/deploy.yml` to lint, test, build, and publish the application to `https://parthparthu.github.io/Oweo/`.
+
 ---
 
 ## 🚫 Non-Goals

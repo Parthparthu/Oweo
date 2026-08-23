@@ -6,7 +6,8 @@
     <script>
       // Single Page Apps for GitHub Pages & Static Hosts redirect
       // Treats the 404 response by preserving the path in a query parameter and redirecting to the root index.html
-      var pathSegmentsToKeep = 0;
+      // Segment count: 1 for GitHub Pages project subpaths (/Oweo/), 0 for custom root domains.
+      var pathSegmentsToKeep = window.location.pathname.toLowerCase().startsWith('/oweo') ? 1 : 0;
       var l = window.location;
       l.replace(
         l.protocol +

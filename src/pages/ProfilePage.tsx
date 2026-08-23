@@ -46,7 +46,7 @@ export const ProfilePage: React.FC = () => {
       await resetCurrentUserData(user.uid)
       showToast('All your test data has been wiped clean!', 'success')
       setTimeout(() => {
-        window.location.href = '/'
+        window.location.href = import.meta.env.BASE_URL || '/'
       }, 1000)
     } catch (err: any) {
       showToast(err?.message || 'Failed to reset test data', 'error')

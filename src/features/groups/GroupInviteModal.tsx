@@ -40,8 +40,9 @@ export const GroupInviteModal: React.FC = () => {
     }
   }, [isInviteModalOpen, activeGroup, user, profile])
 
+  const basePath = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
   const inviteUrl = invite
-    ? `${window.location.origin}/join/${invite.inviteCode}`
+    ? `${window.location.origin}${basePath}/join/${invite.inviteCode}`
     : ''
 
   // Render QR Code onto canvas

@@ -55,6 +55,6 @@ export const router = createBrowserRouter(
     },
   ],
   {
-    basename: import.meta.env.VITE_BASE_URL || '/',
+    basename: import.meta.env.BASE_URL || import.meta.env.VITE_BASE_URL || '/',
   }
 )
