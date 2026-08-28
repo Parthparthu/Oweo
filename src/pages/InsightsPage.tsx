@@ -21,26 +21,6 @@ import {
 } from '@/domain/analytics/analyticsEngine'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PieChart } from 'lucide-react'
-import { motion } from 'framer-motion'
-import { useIntersectionReveal } from '@/hooks/useIntersectionReveal'
-
-// Individual animated section wrapper
-const RevealSection: React.FC<{ children: React.ReactNode; delay?: number }> = ({
-  children,
-  delay = 0,
-}) => {
-  const { ref, isVisible } = useIntersectionReveal<HTMLDivElement>({ threshold: 0.06 })
-  return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 20 }}
-      animate={isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-      transition={{ duration: 0.45, delay, ease: [0.16, 1, 0.3, 1] }}
-    >
-      {children}
-    </motion.div>
-  )
-}
 
 export const InsightsPage: React.FC = () => {
   const expenses = useCombinedExpenses()
@@ -58,12 +38,7 @@ export const InsightsPage: React.FC = () => {
 
   if (expenses.length === 0) {
     return (
-      <motion.div
-        className="space-y-6 pb-8"
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      >
+      <div className="space-y-6 pb-8">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
             Spending Insights
@@ -77,48 +52,33 @@ export const InsightsPage: React.FC = () => {
           title="No insights available yet"
           description="Log a personal expense or join a split group to generate category breakdowns, spending trends, and deterministic insights."
         />
-      </motion.div>
+      </div>
     )
   }
 
   return (
-    <motion.div
-      className="space-y-6 pb-8"
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-    >
+    <div className="space-y-6 pb-8">
       {/* Header */}
-      <RevealSection>
-        <div>
-          <h2 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
-            Spending Insights &amp; Analytics
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Factual visualizations of where your money went
-          </p>
-        </div>
-      </RevealSection>
+      <div>
+        <h2 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
+          Spending Insights &amp; Analytics
+        </h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Factual visualizations of where your money went
+        </p>
+      </div>
 
       {/* Smart Insights */}
-      <RevealSection delay={0.05}>
-        <SmartInsightsList insights={insights} />
-      </RevealSection>
+      <SmartInsightsList insights={insights} />
 
       {/* Month-over-Month */}
-      <RevealSection delay={0.1}>
-        <MonthOverMonthCard metrics={metrics} />
-      </RevealSection>
+      <MonthOverMonthCard metrics={metrics} />
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <RevealSection delay={0.12}>
-          <CategoryDonutChart data={categoryData} />
-        </RevealSection>
-        <RevealSection delay={0.18}>
-          <SpendingBarChart data={categoryData} />
-        </RevealSection>
+        <CategoryDonutChart data={categoryData} />
+        <SpendingBarChart data={categoryData} />
       </div>
-    </motion.div>
+    </div>
   )
 }

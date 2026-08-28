@@ -95,7 +95,7 @@ export const WhoOwesMeCard: React.FC<Props> = ({
           <div className="space-y-2 pt-1">
             {owedToUser.slice(0, 3).map((item, idx) => (
               <motion.div
-                key={idx}
+                key={item.userId + (item.groupId || '') + idx}
                 custom={idx}
                 variants={debtItemVariants}
                 initial="hidden"
@@ -153,7 +153,7 @@ export const WhoOwesMeCard: React.FC<Props> = ({
           <div className="space-y-2 pt-1">
             {userOwes.slice(0, 3).map((item, idx) => (
               <motion.div
-                key={idx}
+                key={item.userId + (item.groupId || '') + idx}
                 custom={idx}
                 variants={debtItemVariants}
                 initial="hidden"

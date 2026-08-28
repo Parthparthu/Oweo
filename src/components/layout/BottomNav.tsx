@@ -47,27 +47,11 @@ export const BottomNav: React.FC = () => {
                 <motion.button
                   type="button"
                   onClick={openAddExpense}
-                  className="w-13 h-13 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/30 border-4 border-background"
+                  className="w-[52px] h-[52px] rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/35 border-4 border-background hover:shadow-primary/50 transition-shadow"
                   aria-label="Add Expense"
                   whileHover={{ scale: 1.08 }}
-                  whileTap={{ scale: 0.9 }}
-                  style={{
-                    width: 52,
-                    height: 52,
-                    boxShadow: '0 4px 16px hsl(var(--primary) / 0.4), 0 0 0 0 hsl(var(--primary) / 0)',
-                  }}
-                  animate={{
-                    boxShadow: [
-                      '0 4px 16px hsl(var(--primary) / 0.4)',
-                      '0 4px 24px hsl(var(--primary) / 0.6)',
-                      '0 4px 16px hsl(var(--primary) / 0.4)',
-                    ],
-                  }}
-                  transition={{
-                    repeat: Infinity,
-                    duration: 3,
-                    ease: 'easeInOut',
-                  }}
+                  whileTap={{ scale: 0.92 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                 >
                   <Plus className="h-6 w-6 stroke-[2.5]" />
                 </motion.button>

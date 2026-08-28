@@ -27,10 +27,9 @@ interface ActionCardProps {
 const ActionCard: React.FC<ActionCardProps> = ({ onClick, href, iconClass, icon, title, desc }) => {
   const content = (
     <motion.div
-      className="flex items-center gap-3 p-3.5 rounded-2xl bg-card border border-border/70 text-left select-none w-full cursor-pointer relative overflow-hidden"
+      className="flex items-center gap-3 p-3.5 rounded-2xl bg-card border border-border/70 hover:border-primary/50 transition-colors text-left select-none w-full cursor-pointer relative overflow-hidden"
       whileHover={{
         y: -3,
-        borderColor: 'hsl(var(--primary) / 0.5)',
         boxShadow: '0 8px 24px -6px rgba(0,0,0,0.10)',
         transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] },
       }}
@@ -44,7 +43,7 @@ const ActionCard: React.FC<ActionCardProps> = ({ onClick, href, iconClass, icon,
         whileHover={{ opacity: 1, x: '200%' }}
         transition={{ duration: 0.45, ease: 'easeInOut' }}
         style={{
-          background: 'linear-gradient(90deg, transparent, hsl(var(--primary)/0.04), transparent)',
+          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)',
         }}
       />
 

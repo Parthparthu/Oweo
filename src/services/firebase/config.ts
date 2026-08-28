@@ -46,11 +46,11 @@ if (isFirebaseConfigured()) {
     // Initialize standard stable Firestore instance
     db = getFirestore(app)
 
-    // Initialize Analytics if supported in environment
-    if (typeof window !== 'undefined') {
+    // Initialize Analytics in production environment only
+    if (typeof window !== 'undefined' && import.meta.env.PROD) {
       isAnalyticsSupported()
         .then((supported) => {
-          if (supported && app) {
+          if (supported && app && firebaseConfig.measurementId) {
             analytics = getAnalytics(app)
           }
         })

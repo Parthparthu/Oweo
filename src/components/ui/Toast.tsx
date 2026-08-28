@@ -34,32 +34,30 @@ const toastVariants = {
     opacity: 0,
     y: 16,
     scale: 0.95,
-    filter: 'blur(4px)',
   },
   visible: {
     opacity: 1,
     y: 0,
     scale: 1,
-    filter: 'blur(0px)',
     transition: { type: 'spring', stiffness: 300, damping: 25 },
   },
   exit: {
     opacity: 0,
     y: -8,
     scale: 0.95,
-    filter: 'blur(2px)',
     transition: { duration: 0.2, ease: 'easeIn' },
   },
 }
 
-const ToastItem: React.FC<{ toast: ToastItem; onRemove: (id: string) => void }> = ({
-  toast,
-  onRemove,
-}) => {
+const ToastItemComponent = React.forwardRef<
+  HTMLDivElement,
+  { toast: ToastItem; onRemove: (id: string) => void }
+>(({ toast, onRemove }, ref) => {
   const duration = toast.duration ?? 3500
 
   return (
     <motion.div
+      ref={ref}
       key={toast.id}
       variants={toastVariants}
       initial="hidden"
@@ -105,7 +103,8 @@ const ToastItem: React.FC<{ toast: ToastItem; onRemove: (id: string) => void }> 
       </motion.button>
     </motion.div>
   )
-}
+})
+ToastItemComponent.displayName = 'ToastItem'
 
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<ToastItem[]>([])
@@ -130,7 +129,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       <div className="fixed top-[max(0.75rem,env(safe-area-inset-top,0px))] left-3 right-3 sm:left-auto sm:right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none mx-auto sm:mx-0">
         <AnimatePresence initial={false} mode="sync">
           {toasts.map((toast) => (
-            <ToastItem key={toast.id} toast={toast} onRemove={removeToast} />
+            <ToastItemComponent key={toast.id} toast={toast} onRemove={removeToast} />
           ))}
         </AnimatePresence>
       </div>

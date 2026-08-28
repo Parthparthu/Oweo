@@ -17,7 +17,6 @@ import {
 } from 'recharts'
 import { CategorySpending } from '@/domain/analytics/analyticsEngine'
 import { formatINR } from '@/domain/money/money'
-import { MotionCard } from '@/components/ui/MotionCard'
 import { Card } from '@/components/ui/Card'
 import { PieChart as PieIcon } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -63,7 +62,7 @@ export const CategoryDonutChart: React.FC<Props> = ({ data }) => {
   }
 
   return (
-    <MotionCard className="p-5 border-border/70 shadow-sm space-y-4">
+    <Card className="p-5 border-border/70 shadow-sm space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold tracking-tight text-foreground">
           Spending by Category
@@ -117,6 +116,6 @@ export const CategoryDonutChart: React.FC<Props> = ({ data }) => {
           </motion.div>
         ))}
       </div>
-    </MotionCard>
+    </Card>
   )
 }

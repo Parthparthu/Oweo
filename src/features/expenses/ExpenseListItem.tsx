@@ -71,10 +71,9 @@ export const ExpenseListItem: React.FC<Props> = ({ expense, onClick }) => {
   return (
     <motion.div
       onClick={handleClick}
-      className="flex items-center justify-between p-3.5 rounded-2xl bg-card border border-border/70 cursor-pointer"
+      className="flex items-center justify-between p-3.5 rounded-2xl bg-card border border-border/70 hover:border-primary/45 transition-colors cursor-pointer"
       whileHover={{
         y: -1,
-        borderColor: 'hsl(var(--primary) / 0.45)',
         boxShadow: '0 4px 16px -4px rgba(0,0,0,0.08)',
         transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] },
       }}

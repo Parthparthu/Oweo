@@ -174,6 +174,15 @@ export const LoginScene: React.FC = () => {
           alpha: true,
           powerPreference: 'low-power',
         }}
+        onCreated={({ gl }) => {
+          gl.domElement.addEventListener(
+            'webglcontextlost',
+            (event) => {
+              event.preventDefault()
+            },
+            false
+          )
+        }}
         style={{ background: 'transparent' }}
       >
         <Suspense fallback={null}>

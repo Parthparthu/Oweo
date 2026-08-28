@@ -169,8 +169,8 @@ export const Sheet: React.FC<SheetProps> = ({
           >
             {/* Mobile drag handle bar */}
             <motion.div
-              className="w-10 h-1 bg-muted-foreground/30 rounded-full mx-auto mb-4 sm:hidden shrink-0"
-              whileHover={{ scaleX: 1.3, backgroundColor: 'hsl(var(--muted-foreground) / 0.5)' }}
+              className="w-10 h-1 bg-muted-foreground/30 hover:bg-muted-foreground/50 transition-colors rounded-full mx-auto mb-4 sm:hidden shrink-0"
+              whileHover={{ scaleX: 1.3 }}
               transition={{ duration: 0.2 }}
             />
 

@@ -1,64 +1,33 @@
 /**
  * PageTransition.tsx
- * Wraps route content in Framer Motion AnimatePresence for smooth
- * page-level enter / exit transitions. Applied once in AppShell.
- *
- * Usage:
- *   <PageTransition locationKey={location.pathname}>
- *     <Outlet />
- *   </PageTransition>
+ * Smooth route enter transition for child routes without AnimatePresence blocking.
  */
 import React from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 
 interface PageTransitionProps {
   children: React.ReactNode
-  /** Unique key per route — triggers the enter/exit animation */
+  /** Unique key per route — triggers the enter animation */
   locationKey: string
 }
 
-const pageVariants = {
-  initial: {
-    opacity: 0,
-    y: 10,
-    filter: 'blur(4px)',
-  },
-  animate: {
-    opacity: 1,
-    y: 0,
-    filter: 'blur(0px)',
-    transition: {
-      duration: 0.28,
-      ease: [0.16, 1, 0.3, 1],
-    },
-  },
-  exit: {
-    opacity: 0,
-    y: -6,
-    filter: 'blur(2px)',
-    transition: {
-      duration: 0.16,
-      ease: 'easeIn',
-    },
-  },
-}
-
-export const PageTransition: React.FC<PageTransitionProps> = ({
-  children,
-  locationKey,
-}) => {
-  return (
-    <AnimatePresence mode="wait" initial={false}>
+export const PageTransition = React.forwardRef<HTMLDivElement, PageTransitionProps>(
+  ({ children, locationKey }, ref) => {
+    return (
       <motion.div
         key={locationKey}
-        variants={pageVariants}
-        initial="initial"
-        animate="animate"
-        exit="exit"
-        style={{ willChange: 'opacity, transform, filter' }}
+        ref={ref}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{
+          duration: 0.22,
+          ease: [0.16, 1, 0.3, 1],
+        }}
+        className="w-full"
       >
         {children}
       </motion.div>
-    </AnimatePresence>
-  )
-}
+    )
+  }
+)
+PageTransition.displayName = 'PageTransition'
