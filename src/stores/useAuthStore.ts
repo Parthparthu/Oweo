@@ -21,6 +21,7 @@ interface AuthState {
   loginWithGoogle: () => Promise<void>
   logout: () => Promise<void>
   updateMonthlyBudget: (monthlyBudgetPaise: number) => Promise<void>
+  updateCategoryBudgets: (categoryBudgetsPaise: Record<string, number>) => Promise<void>
   updatePreferences: (data: Partial<UserProfile>) => Promise<void>
   deleteAccount: () => Promise<void>
   setOnlineStatus: (isOnline: boolean) => void
@@ -105,6 +106,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { user, profile } = get()
     if (!user || !profile) return
     const updated = await syncUserProfile(user, { monthlyBudgetPaise })
+    set({ profile: updated })
+  },
+
+  updateCategoryBudgets: async (categoryBudgetsPaise: Record<string, number>) => {
+    const { user, profile } = get()
+    if (!user || !profile) return
+    const updated = await syncUserProfile(user, { categoryBudgetsPaise })
     set({ profile: updated })
   },
 

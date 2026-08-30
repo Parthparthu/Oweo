@@ -11,6 +11,7 @@
  */
 import React, { useMemo } from 'react'
 import { useExpenseStore } from '@/stores/useExpenseStore'
+import { useAuthStore } from '@/stores/useAuthStore'
 import { useCombinedExpenses } from '@/hooks/useCombinedExpenses'
 import { ExpenseListItem } from '@/features/expenses/ExpenseListItem'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -27,11 +28,15 @@ import { StaggerContainer, StaggerItem } from '@/components/ui/StaggerContainer'
 
 export const ActivityPage: React.FC = () => {
   const combinedExpenses = useCombinedExpenses()
+  const user = useAuthStore((state) => state.user)
   const {
     searchQuery,
     selectedCategory,
     startDate,
     endDate,
+    hasMore,
+    isLoadingMore,
+    loadMoreExpenses,
     setSearchQuery,
     setSelectedCategory,
     setDateRange,
@@ -248,6 +253,21 @@ export const ActivityPage: React.FC = () => {
             ))}
           </StaggerContainer>
         </AnimatePresence>
+      )}
+
+      {/* Pagination Load More */}
+      {hasMore && !hasActiveFilters && user && (
+        <div className="flex justify-center pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadMoreExpenses(user.uid)}
+            isLoading={isLoadingMore}
+            className="w-full sm:w-auto font-bold"
+          >
+            Load Older Transactions
+          </Button>
+        </div>
       )}
     </motion.div>
   )

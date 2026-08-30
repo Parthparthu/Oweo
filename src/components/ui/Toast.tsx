@@ -1,30 +1,33 @@
 /**
- * Toast.tsx  (Phase 9 — Animated Toasts)
- *
- * Changes vs original:
- *  ✅ All ToastContext, showToast, removeToast, ToastItem 100% preserved
- *  ✅ useToast hook signature unchanged
- *  + AnimatePresence for smooth mount/unmount
- *  + Toast slides up from bottom with spring + fades out downward
- *  + Auto-dismiss progress bar animates across each toast
- *  + Enhanced glassmorphism styling
+ * Toast.tsx  (Phase 9 — Animated Toasts with Action Support for Undo)
  */
 import React, { createContext, useContext, useState, useCallback } from 'react'
-import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Info, X, RotateCcw } from 'lucide-react'
 import { clsx } from 'clsx'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export type ToastType = 'success' | 'error' | 'info'
+
+export interface ToastAction {
+  label: string
+  onClick: () => void
+}
 
 export interface ToastItem {
   id: string
   type: ToastType
   message: string
   duration?: number
+  action?: ToastAction
 }
 
 interface ToastContextValue {
-  showToast: (message: string, type?: ToastType, duration?: number) => void
+  showToast: (
+    message: string,
+    type?: ToastType,
+    duration?: number,
+    action?: ToastAction
+  ) => void
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null)
@@ -55,6 +58,14 @@ const ToastItemComponent = React.forwardRef<
 >(({ toast, onRemove }, ref) => {
   const duration = toast.duration ?? 3500
 
+  const handleActionClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (toast.action) {
+      toast.action.onClick()
+      onRemove(toast.id)
+    }
+  }
+
   return (
     <motion.div
       ref={ref}
@@ -78,7 +89,7 @@ const ToastItemComponent = React.forwardRef<
           'absolute bottom-0 left-0 h-0.5 rounded-full',
           toast.type === 'success' && 'bg-emerald-400/60',
           toast.type === 'error' && 'bg-rose-400/60',
-          toast.type === 'info' && 'bg-primary/60',
+          toast.type === 'info' && 'bg-primary/60'
         )}
         initial={{ width: '100%' }}
         animate={{ width: '0%' }}
@@ -92,9 +103,20 @@ const ToastItemComponent = React.forwardRef<
         <span className="break-words text-xs sm:text-sm">{toast.message}</span>
       </div>
 
+      {toast.action && (
+        <button
+          type="button"
+          onClick={handleActionClick}
+          className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-all shrink-0 active:scale-95 shadow-sm"
+        >
+          <RotateCcw className="h-3 w-3" />
+          <span>{toast.action.label}</span>
+        </button>
+      )}
+
       <motion.button
         onClick={() => onRemove(toast.id)}
-        className="rounded-lg p-1.5 min-w-[36px] min-h-[36px] flex items-center justify-center hover:bg-black/20 text-muted-foreground hover:text-foreground shrink-0"
+        className="rounded-lg p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center hover:bg-black/20 text-muted-foreground hover:text-foreground shrink-0"
         whileHover={{ scale: 1.12 }}
         whileTap={{ scale: 0.88 }}
         aria-label="Dismiss notification"
@@ -114,9 +136,9 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [])
 
   const showToast = useCallback(
-    (message: string, type: ToastType = 'info', duration = 3500) => {
+    (message: string, type: ToastType = 'info', duration = 3500, action?: ToastAction) => {
       const id = Math.random().toString(36).substring(2, 9)
-      setToasts((prev) => [...prev, { id, type, message, duration }])
+      setToasts((prev) => [...prev, { id, type, message, duration, action }])
       setTimeout(() => removeToast(id), duration)
     },
     [removeToast]

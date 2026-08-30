@@ -13,7 +13,7 @@ import { Trash2 } from 'lucide-react'
 const PAYMENT_METHODS: PaymentMethod[] = ['UPI', 'Card', 'Cash', 'Net Banking']
 
 export const EditExpenseModal: React.FC = () => {
-  const { editingExpense, closeEditExpense, updateExpense, removeExpense } = useExpenseStore()
+  const { editingExpense, closeEditExpense, updateExpense, removeExpense, restoreExpense } = useExpenseStore()
   const { showToast } = useToast()
 
   const [amountStr, setAmountStr] = useState('')
@@ -73,13 +73,20 @@ export const EditExpenseModal: React.FC = () => {
 
   const handleDelete = async () => {
     if (!editingExpense || isDeleting) return
+    const deletedExpense = { ...editingExpense }
     setIsDeleting(true)
     try {
       await removeExpense(editingExpense.id)
-      showToast('Expense deleted', 'info')
+      showToast('Expense deleted', 'info', 5000, {
+        label: 'Undo',
+        onClick: async () => {
+          await restoreExpense(deletedExpense)
+          showToast('Expense restored', 'success')
+        },
+      })
       closeEditExpense()
     } catch (err: any) {
-      setError(err?.message || 'Failed to delete expense')
+      showToast(err?.message || 'Failed to delete expense', 'error')
     } finally {
       setIsDeleting(false)
     }

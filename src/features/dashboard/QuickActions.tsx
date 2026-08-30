@@ -1,18 +1,13 @@
 /**
- * QuickActions.tsx  (Phase 5 — Interactive Action Cards)
- *
- * Changes vs original:
- *  ✅ All onClick handlers, navigation links 100% preserved
- *  + StaggerContainer wrapping all 4 cards
- *  + Each card has hover lift + icon spring rotation
- *  + Shimmer line on card hover
+ * QuickActions.tsx  (1:1 Split + Group + Spend Shortcuts)
  */
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Users, PieChart, ArrowLeftRight } from 'lucide-react'
+import { Plus, Users, PieChart, Handshake } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useExpenseStore } from '@/stores/useExpenseStore'
 import { useGroupStore } from '@/stores/useGroupStore'
+import { useDirectDebtStore } from '@/stores/useDirectDebtStore'
 import { StaggerContainer, StaggerItem } from '@/components/ui/StaggerContainer'
 
 interface ActionCardProps {
@@ -74,6 +69,7 @@ const ActionCard: React.FC<ActionCardProps> = ({ onClick, href, iconClass, icon,
 export const QuickActions: React.FC = () => {
   const openAddExpense = useExpenseStore((state) => state.openAddExpenseSheet)
   const openCreateGroup = useGroupStore((state) => state.openCreateGroupModal)
+  const openAddDirectDebt = useDirectDebtStore((state) => state.openAddDirectDebtModal)
 
   return (
     <StaggerContainer className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
@@ -88,20 +84,20 @@ export const QuickActions: React.FC = () => {
       </StaggerItem>
       <StaggerItem>
         <ActionCard
-          onClick={openCreateGroup}
-          iconClass="bg-indigo-500/15 text-indigo-600 dark:text-indigo-400"
-          icon={<Users className="h-5 w-5" />}
-          title="New Group"
-          desc="Trips & Roommates"
+          onClick={openAddDirectDebt}
+          iconClass="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+          icon={<Handshake className="h-5 w-5" />}
+          title="1:1 Split"
+          desc="Split without group"
         />
       </StaggerItem>
       <StaggerItem>
         <ActionCard
-          href="/groups"
-          iconClass="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-          icon={<ArrowLeftRight className="h-5 w-5" />}
-          title="Split Debts"
-          desc="Who owes who"
+          onClick={openCreateGroup}
+          iconClass="bg-indigo-500/15 text-indigo-600 dark:text-indigo-400"
+          icon={<Users className="h-5 w-5" />}
+          title="New Group"
+          desc="Trips & Flatmates"
         />
       </StaggerItem>
       <StaggerItem>

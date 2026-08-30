@@ -7,9 +7,13 @@ import {
   deleteDoc,
   query,
   where,
+  limit,
+  startAfter,
+  getDocs,
   onSnapshot,
   arrayUnion,
   arrayRemove,
+  DocumentSnapshot,
   Unsubscribe,
 } from 'firebase/firestore'
 import { db } from './config'
@@ -18,15 +22,19 @@ import { GroupExpense } from '@/types/expense'
 import { Settlement } from '@/types/settlement'
 import { generateId, generateInviteCode } from '@/utils/idGenerator'
 import { sanitizeForFirestore } from '@/utils/firestoreUtils'
+import { recordAuditLog } from './auditLogService'
+
+export const DEFAULT_GROUP_WINDOW_SIZE = 50
+export const DEFAULT_PAGE_SIZE = 20
 
 /**
- * Subscribes to the list of groups where the user is a member.
- * Sorts in-memory so no composite index is needed.
+ * Subscribes to a bounded window of groups where the user is a member.
  */
 export function subscribeUserGroups(
   userId: string,
   onUpdate: (groups: Group[]) => void,
-  onError?: (error: Error) => void
+  onError?: (error: Error) => void,
+  limitCount: number = DEFAULT_GROUP_WINDOW_SIZE
 ): Unsubscribe {
   if (!db) {
     onUpdate([])
@@ -35,7 +43,8 @@ export function subscribeUserGroups(
 
   const q = query(
     collection(db, 'groups'),
-    where('memberIds', 'array-contains', userId)
+    where('memberIds', 'array-contains', userId),
+    limit(limitCount)
   )
 
   return onSnapshot(
@@ -96,12 +105,13 @@ export function subscribeGroupMembers(
 }
 
 /**
- * Subscribes to group expenses (`groups/{groupId}/expenses`).
- * Sorts in-memory so subcollection query does not fail.
+ * Subscribes to a bounded window of group expenses (`groups/{groupId}/expenses`).
  */
 export function subscribeGroupExpenses(
   groupId: string,
-  onUpdate: (expenses: GroupExpense[]) => void
+  onUpdate: (expenses: GroupExpense[]) => void,
+  onError?: (error: Error) => void,
+  limitCount: number = DEFAULT_GROUP_WINDOW_SIZE
 ): Unsubscribe {
   if (!db) {
     onUpdate([])
@@ -109,27 +119,80 @@ export function subscribeGroupExpenses(
   }
 
   const colRef = collection(db, 'groups', groupId, 'expenses')
+  const q = query(colRef, limit(limitCount))
 
-  return onSnapshot(colRef, (snapshot) => {
-    const list: GroupExpense[] = []
-    snapshot.forEach((docSnap) => {
-      list.push({ id: docSnap.id, ...docSnap.data() } as GroupExpense)
-    })
-    list.sort((a, b) => {
-      const dateComp = (b.date || '').localeCompare(a.date || '')
-      if (dateComp !== 0) return dateComp
-      return (b.createdAt || 0) - (a.createdAt || 0)
-    })
-    onUpdate(list)
-  })
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const list: GroupExpense[] = []
+      snapshot.forEach((docSnap) => {
+        list.push({ id: docSnap.id, ...docSnap.data() } as GroupExpense)
+      })
+      list.sort((a, b) => {
+        const dateComp = (b.date || '').localeCompare(a.date || '')
+        if (dateComp !== 0) return dateComp
+        return (b.createdAt || 0) - (a.createdAt || 0)
+      })
+      onUpdate(list)
+    },
+    (err) => {
+      console.warn('Group expenses subscription notice:', err)
+      if (onError) onError(err)
+    }
+  )
 }
 
 /**
- * Subscribes to group settlements (`groups/{groupId}/settlements`).
+ * Fetches a paginated page of group expenses using cursor-based pagination.
+ */
+export async function fetchGroupExpensesPage(
+  groupId: string,
+  pageSize: number = DEFAULT_PAGE_SIZE,
+  lastDoc?: DocumentSnapshot | null
+): Promise<{ expenses: GroupExpense[]; lastDoc: DocumentSnapshot | null; hasMore: boolean }> {
+  if (!db) {
+    return { expenses: [], lastDoc: null, hasMore: false }
+  }
+
+  const colRef = collection(db, 'groups', groupId, 'expenses')
+  let q = query(colRef, limit(pageSize + 1))
+  if (lastDoc) {
+    q = query(colRef, startAfter(lastDoc), limit(pageSize + 1))
+  }
+
+  const snapshot = await getDocs(q)
+  const docs = snapshot.docs
+  const hasMore = docs.length > pageSize
+  const resultDocs = hasMore ? docs.slice(0, pageSize) : docs
+
+  const list: GroupExpense[] = resultDocs.map((docSnap) => ({
+    id: docSnap.id,
+    ...docSnap.data(),
+  })) as GroupExpense[]
+
+  list.sort((a, b) => {
+    const dateComp = (b.date || '').localeCompare(a.date || '')
+    if (dateComp !== 0) return dateComp
+    return (b.createdAt || 0) - (a.createdAt || 0)
+  })
+
+  const newLastDoc = resultDocs.length > 0 ? resultDocs[resultDocs.length - 1] : null
+
+  return {
+    expenses: list,
+    lastDoc: newLastDoc,
+    hasMore,
+  }
+}
+
+/**
+ * Subscribes to a bounded window of group settlements (`groups/{groupId}/settlements`).
  */
 export function subscribeGroupSettlements(
   groupId: string,
-  onUpdate: (settlements: Settlement[]) => void
+  onUpdate: (settlements: Settlement[]) => void,
+  onError?: (error: Error) => void,
+  limitCount: number = DEFAULT_GROUP_WINDOW_SIZE
 ): Unsubscribe {
   if (!db) {
     onUpdate([])
@@ -137,19 +200,27 @@ export function subscribeGroupSettlements(
   }
 
   const colRef = collection(db, 'groups', groupId, 'settlements')
+  const q = query(colRef, limit(limitCount))
 
-  return onSnapshot(colRef, (snapshot) => {
-    const list: Settlement[] = []
-    snapshot.forEach((docSnap) => {
-      list.push({ id: docSnap.id, ...docSnap.data() } as Settlement)
-    })
-    list.sort((a, b) => {
-      const dateComp = (b.date || '').localeCompare(a.date || '')
-      if (dateComp !== 0) return dateComp
-      return (b.createdAt || 0) - (a.createdAt || 0)
-    })
-    onUpdate(list)
-  })
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const list: Settlement[] = []
+      snapshot.forEach((docSnap) => {
+        list.push({ id: docSnap.id, ...docSnap.data() } as Settlement)
+      })
+      list.sort((a, b) => {
+        const dateComp = (b.date || '').localeCompare(a.date || '')
+        if (dateComp !== 0) return dateComp
+        return (b.createdAt || 0) - (a.createdAt || 0)
+      })
+      onUpdate(list)
+    },
+    (err) => {
+      console.warn('Group settlements subscription notice:', err)
+      if (onError) onError(err)
+    }
+  )
 }
 
 /**
@@ -189,11 +260,25 @@ export async function createGroup(
   // 2. Add creator to members subcollection
   await setDoc(doc(db, 'groups', groupId, 'members', creator.uid), sanitizeForFirestore(creatorMember))
 
+  // 3. Record audit log
+  await recordAuditLog({
+    groupId,
+    entityType: 'expense',
+    entityId: groupId,
+    action: 'create',
+    actorId: creator.uid,
+    actorSnapshot: {
+      displayName: creator.displayName,
+      photoURL: creator.photoURL || null,
+    },
+    summary: `Created group "${newGroup.name}"`,
+  })
+
   return newGroup
 }
 
 /**
- * Adds an expense to a group.
+ * Adds an expense to a group and records an audit log entry.
  */
 export async function addGroupExpense(
   groupId: string,
@@ -220,11 +305,107 @@ export async function addGroupExpense(
     updatedAt: now,
   })
 
+  // Append to audit log
+  await recordAuditLog({
+    groupId,
+    entityType: 'expense',
+    entityId: id,
+    action: 'create',
+    actorId: expenseData.payerId,
+    actorSnapshot: {
+      displayName: expenseData.payerSnapshot?.displayName || 'Member',
+      photoURL: expenseData.payerSnapshot?.photoURL || null,
+    },
+    summary: `Added expense "${expenseData.title}" of ₹${(expenseData.amountPaise / 100).toFixed(2)}`,
+    afterState: expense,
+  })
+
   return expense
 }
 
 /**
- * Records a manual settlement in a group.
+ * Updates a group expense and records an audit log entry.
+ */
+export async function updateGroupExpense(
+  groupId: string,
+  expenseId: string,
+  partial: Partial<GroupExpense>,
+  actor: { uid: string; displayName: string; photoURL?: string | null }
+): Promise<void> {
+  if (!db) return
+  const now = Date.now()
+  const docRef = doc(db, 'groups', groupId, 'expenses', expenseId)
+
+  // Fetch current state for audit beforeState
+  const currentSnap = await getDoc(docRef)
+  const beforeState = currentSnap.exists() ? currentSnap.data() : null
+
+  await updateDoc(
+    docRef,
+    sanitizeForFirestore({
+      ...partial,
+      updatedAt: now,
+    })
+  )
+
+  await updateDoc(doc(db, 'groups', groupId), {
+    updatedAt: now,
+  })
+
+  // Append to audit log
+  await recordAuditLog({
+    groupId,
+    entityType: 'expense',
+    entityId: expenseId,
+    action: 'update',
+    actorId: actor.uid,
+    actorSnapshot: {
+      displayName: actor.displayName,
+      photoURL: actor.photoURL || null,
+    },
+    summary: `Updated expense "${partial.title || beforeState?.title || 'Expense'}"`,
+    beforeState,
+    afterState: { ...beforeState, ...partial, updatedAt: now },
+  })
+}
+
+/**
+ * Deletes a group expense and records an audit log entry.
+ */
+export async function deleteGroupExpense(
+  groupId: string,
+  expenseId: string,
+  actor: { uid: string; displayName: string; photoURL?: string | null }
+): Promise<void> {
+  if (!db) return
+  const docRef = doc(db, 'groups', groupId, 'expenses', expenseId)
+
+  const currentSnap = await getDoc(docRef)
+  const beforeState = currentSnap.exists() ? currentSnap.data() : null
+
+  await deleteDoc(docRef)
+  await updateDoc(doc(db, 'groups', groupId), {
+    updatedAt: Date.now(),
+  })
+
+  // Append to audit log
+  await recordAuditLog({
+    groupId,
+    entityType: 'expense',
+    entityId: expenseId,
+    action: 'delete',
+    actorId: actor.uid,
+    actorSnapshot: {
+      displayName: actor.displayName,
+      photoURL: actor.photoURL || null,
+    },
+    summary: `Deleted expense "${beforeState?.title || 'Expense'}"`,
+    beforeState,
+  })
+}
+
+/**
+ * Records a manual settlement in a group and appends an audit log entry.
  */
 export async function recordGroupSettlement(
   groupId: string,
@@ -246,6 +427,23 @@ export async function recordGroupSettlement(
 
   await updateDoc(doc(db, 'groups', groupId), {
     updatedAt: now,
+  })
+
+  // Append to audit log
+  await recordAuditLog({
+    groupId,
+    entityType: 'settlement',
+    entityId: id,
+    action: 'settle',
+    actorId: settlementData.payerId,
+    actorSnapshot: {
+      displayName: settlementData.payerSnapshot?.displayName || 'Member',
+      photoURL: settlementData.payerSnapshot?.photoURL || null,
+    },
+    summary: `Recorded settlement of ₹${(settlementData.amountPaise / 100).toFixed(2)} to ${
+      settlementData.receiverSnapshot?.displayName || 'Member'
+    }`,
+    afterState: settlement,
   })
 
   return settlement
@@ -348,6 +546,20 @@ export async function redeemGroupInvite(
   // 3. Increment used count
   await updateDoc(inviteRef, {
     usedCount: (invite.usedCount || 0) + 1,
+  })
+
+  // 4. Record audit log
+  await recordAuditLog({
+    groupId: group.id,
+    entityType: 'expense',
+    entityId: user.uid,
+    action: 'create',
+    actorId: user.uid,
+    actorSnapshot: {
+      displayName: user.displayName,
+      photoURL: user.photoURL || null,
+    },
+    summary: `${user.displayName} joined the group`,
   })
 
   return {

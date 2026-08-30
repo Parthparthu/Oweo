@@ -1,3 +1,5 @@
+import { CurrencyCode } from './currency'
+
 export type ExpenseCategory =
   | 'Food'
   | 'Travel'
@@ -19,7 +21,7 @@ export type PaymentMethod = 'UPI' | 'Card' | 'Cash' | 'Net Banking' | 'Other'
 export interface PersonalExpense {
   id: string
   userId: string
-  amountPaise: number // Integer minor units (e.g. 18000 = ₹180.00)
+  amountPaise: number // Integer minor units in base currency INR (e.g. 18000 = ₹180.00)
   category: ExpenseCategory
   title: string
   note?: string
@@ -30,6 +32,10 @@ export interface PersonalExpense {
   groupId?: string
   groupExpenseId?: string
   groupName?: string
+  // Multi-Currency metadata
+  originalCurrency?: CurrencyCode
+  originalAmount?: number
+  exchangeRate?: number // 1 unit of originalCurrency = X INR
   createdAt: number // timestamp ms
   updatedAt: number // timestamp ms
 }
@@ -52,13 +58,17 @@ export interface GroupExpense {
     displayName: string
     photoURL?: string | null
   }
-  amountPaise: number
+  amountPaise: number // Integer minor units in base currency INR
   title: string
   category: ExpenseCategory
   date: string // YYYY-MM-DD
   note?: string
   splitType: SplitType
   participants: Record<string, ParticipantShare> // key is userId
+  // Multi-Currency metadata
+  originalCurrency?: CurrencyCode
+  originalAmount?: number
+  exchangeRate?: number
   createdAt: number
   updatedAt: number
 }

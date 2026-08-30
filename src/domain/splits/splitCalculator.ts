@@ -75,6 +75,7 @@ export function validateCustomSplit(
   return {
     isValid: true,
     shares: sharesPaise,
+    discrepancyPaise: 0,
   }
 }
 

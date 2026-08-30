@@ -30,6 +30,7 @@ import {
   MoreHorizontal,
   Wand2,
   Calendar,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -52,41 +53,45 @@ const ICONS: Record<string, React.ReactNode> = {
 const PAYMENT_METHODS: PaymentMethod[] = ['UPI', 'Card', 'Cash', 'Net Banking']
 
 export const AddExpenseSheet: React.FC = () => {
-  const { isAddExpenseSheetOpen, closeAddExpenseSheet, createExpense } = useExpenseStore()
+  const { isAddExpenseSheetOpen, closeAddExpenseSheet, createExpense, removeExpense } = useExpenseStore()
   const user = useAuthStore((state) => state.user)
   const { showToast } = useToast()
 
+  const [quickInput, setQuickInput] = useState('')
   const [amountStr, setAmountStr] = useState('')
   const [category, setCategory] = useState<ExpenseCategory>('Food')
   const [title, setTitle] = useState('')
   const [date, setDate] = useState(toISODateString())
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('UPI')
   const [note, setNote] = useState('')
-  const [quickInput, setQuickInput] = useState('')
-  const [isQuickMode, setIsQuickMode] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  // Reset form on open
+  // Reset form on open - Default to Smart NLP Quick Entry
   useEffect(() => {
     if (isAddExpenseSheetOpen) {
+      setQuickInput('')
       setAmountStr('')
       setCategory('Food')
       setTitle('')
       setDate(toISODateString())
       setPaymentMethod('UPI')
       setNote('')
-      setQuickInput('')
-      setIsQuickMode(false)
+      setShowAdvanced(false)
       setError('')
       setIsSubmitting(false)
     }
   }, [isAddExpenseSheetOpen])
 
-  // Handle Quick text parsing on the fly
+  // Handle Quick text parsing in real-time
   const handleQuickInputChange = (text: string) => {
     setQuickInput(text)
-    if (!text.trim()) return
+    if (!text.trim()) {
+      setAmountStr('')
+      setTitle('')
+      return
+    }
 
     const parsed = parseQuickExpenseInput(text)
     if (parsed.amountPaise) {
@@ -104,9 +109,27 @@ export const AddExpenseSheet: React.FC = () => {
     if (e) e.preventDefault()
     if (isSubmitting) return
 
-    const parsedPaise = parseAmountInput(amountStr)
+    // If user typed only in quickInput, make sure it's parsed
+    let effectiveAmount = amountStr
+    let effectiveCategory = category
+    let effectiveTitle = title
+
+    if (quickInput.trim()) {
+      const parsed = parseQuickExpenseInput(quickInput)
+      if (parsed.amountPaise && !amountStr) {
+        effectiveAmount = (parsed.amountPaise / 100).toString()
+      }
+      if (parsed.category && (!category || category === 'Food')) {
+        effectiveCategory = parsed.category
+      }
+      if (parsed.title && !title) {
+        effectiveTitle = parsed.title
+      }
+    }
+
+    const parsedPaise = parseAmountInput(effectiveAmount)
     if (!parsedPaise || parsedPaise <= 0) {
-      setError('Please enter a valid amount greater than ₹0')
+      setError('Please enter an amount (e.g. 180 dinner)')
       return
     }
 
@@ -119,17 +142,28 @@ export const AddExpenseSheet: React.FC = () => {
     setError('')
 
     try {
-      await createExpense({
+      const saved = await createExpense({
         userId: user.uid,
         amountPaise: parsedPaise,
-        category,
-        title: title.trim() || category,
+        category: effectiveCategory,
+        title: effectiveTitle.trim() || effectiveCategory,
         date,
         paymentMethod,
         note: note.trim() || undefined,
       })
 
-      showToast(`Added ₹${(parsedPaise / 100).toFixed(2)} for ${category}`, 'success')
+      showToast(
+        `Added ₹${(parsedPaise / 100).toFixed(2)} for ${effectiveCategory}`,
+        'success',
+        4000,
+        {
+          label: 'Undo',
+          onClick: async () => {
+            await removeExpense(saved.id)
+            showToast('Expense removed', 'info')
+          },
+        }
+      )
       closeAddExpenseSheet()
     } catch (err: any) {
       setError(err?.message || 'Failed to save expense')
@@ -143,60 +177,64 @@ export const AddExpenseSheet: React.FC = () => {
       isOpen={isAddExpenseSheetOpen}
       onClose={closeAddExpenseSheet}
       title="Add Expense"
-      description="Record a personal spending transaction"
+      description="Type naturally or enter amount to log spending"
     >
       <form onSubmit={handleSave} className="space-y-4">
-        {/* Toggle Mode: Keypad vs Quick Text */}
-        <div className="flex items-center justify-between pb-1">
-          <button
-            type="button"
-            onClick={() => setIsQuickMode(!isQuickMode)}
-            className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:opacity-80 transition-opacity"
-          >
+        {/* NLP Quick Input (Default Experience) */}
+        <div className="space-y-2.5 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-4 rounded-2xl border border-primary/20">
+          <label className="block text-xs font-extrabold text-primary uppercase tracking-wide flex items-center gap-1.5">
             <Wand2 className="h-3.5 w-3.5" />
-            <span>{isQuickMode ? 'Switch to Standard Keypad' : 'Quick Text Entry (e.g. 180 dinner)'}</span>
-          </button>
-        </div>
+            <span>Quick Natural Entry</span>
+          </label>
+          <Input
+            value={quickInput}
+            onChange={(e) => handleQuickInputChange(e.target.value)}
+            placeholder="e.g. 250 Swiggy, 50 auto, 1200 groceries"
+            autoFocus
+            className="text-base font-semibold"
+          />
 
-        {/* Quick Text Input Mode */}
-        {isQuickMode ? (
-          <div className="space-y-3 bg-muted/40 p-3.5 rounded-2xl border border-border/70 animate-fade-in">
-            <Input
-              value={quickInput}
-              onChange={(e) => handleQuickInputChange(e.target.value)}
-              placeholder="e.g. 180 dinner, 50 auto, 1200 groceries"
-              autoFocus
-              leftIcon={<Wand2 className="h-4 w-4 text-primary" />}
-            />
+          {/* Real-time Parsed Preview Badges */}
+          <div className="flex items-center gap-2 flex-wrap pt-1 min-h-[32px]">
+            {amountStr ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary text-primary-foreground font-black text-xs shadow-sm">
+                ₹{amountStr}
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground italic">Type amount and description above</span>
+            )}
             {amountStr && (
-              <div className="flex items-center justify-between text-xs px-1 text-muted-foreground">
-                <span>
-                  Detected: <strong className="text-foreground">₹{amountStr}</strong> for{' '}
-                  <strong className="text-foreground">{category}</strong>
+              <>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-card border border-border/80 font-bold text-xs text-foreground">
+                  {category}
                 </span>
-                <span className="text-primary font-bold">{title}</span>
-              </div>
+                {title && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-card border border-border/80 font-medium text-xs text-muted-foreground truncate max-w-[150px]">
+                    "{title}"
+                  </span>
+                )}
+              </>
             )}
           </div>
-        ) : (
-          /* Standard Big Numeric Amount Input */
-          <AmountInput
-            value={amountStr}
-            onChange={(val) => {
-              setAmountStr(val)
-              if (error) setError('')
-            }}
-            autoFocus
-            error={error}
-          />
-        )}
+        </div>
+
+        {/* Quick Amount Keypad or Chips (if user wants to type or adjust amount directly) */}
+        <AmountInput
+          value={amountStr}
+          onChange={(val) => {
+            setAmountStr(val)
+            if (error) setError('')
+          }}
+          showQuickChips={true}
+          error={error}
+        />
 
         {/* Categories Chip Grid */}
         <div className="space-y-1.5 pt-1">
           <label className="block text-xs font-bold text-foreground/80 uppercase tracking-wide">
             Category
           </label>
-          <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 gap-1.5 xs:gap-2 max-h-44 overflow-y-auto overscroll-contain pr-1">
+          <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 gap-1.5 xs:gap-2 max-h-40 overflow-y-auto overscroll-contain pr-1">
             {ALL_CATEGORIES.map((catKey) => {
               const meta = CATEGORY_DEFINITIONS[catKey]
               const isSelected = category === catKey
@@ -206,7 +244,7 @@ export const AddExpenseSheet: React.FC = () => {
                   type="button"
                   onClick={() => setCategory(catKey)}
                   className={clsx(
-                    'flex items-center gap-1.5 xs:gap-2 p-2 xs:p-2.5 min-h-[40px] rounded-xl border text-xs font-semibold transition-all select-none text-left',
+                    'flex items-center gap-1.5 xs:gap-2 p-2 xs:p-2.5 min-h-[38px] rounded-xl border text-xs font-semibold transition-all select-none text-left',
                     isSelected
                       ? 'bg-primary text-primary-foreground border-primary shadow-sm font-bold scale-[1.02]'
                       : 'bg-card text-foreground/90 border-border/60 hover:bg-muted/70'
@@ -222,54 +260,70 @@ export const AddExpenseSheet: React.FC = () => {
           </div>
         </div>
 
-        {/* Description & Note inputs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          <Input
-            label="Description (Optional)"
-            placeholder={category}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-          <Input
-            label="Date"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            leftIcon={<Calendar className="h-4 w-4" />}
-          />
+        {/* Toggle Advanced Details (Date, Payment Method, Custom Description, Note) */}
+        <div className="pt-1">
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            <span>{showAdvanced ? 'Hide Additional Details' : 'More Options (Date, Payment, Note)'}</span>
+          </button>
         </div>
 
-        {/* Payment Method Selector */}
-        <div className="space-y-1.5 pt-1">
-          <label className="block text-xs font-bold text-foreground/80 uppercase tracking-wide">
-            Payment Method
-          </label>
-          <div className="flex items-center gap-2 flex-wrap">
-            {PAYMENT_METHODS.map((pm) => (
-              <button
-                key={pm}
-                type="button"
-                onClick={() => setPaymentMethod(pm)}
-                className={clsx(
-                  'px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all select-none',
-                  paymentMethod === pm
-                    ? 'bg-foreground text-background border-foreground font-bold shadow-sm'
-                    : 'bg-card text-muted-foreground border-border/60 hover:text-foreground'
-                )}
-              >
-                {pm}
-              </button>
-            ))}
+        {showAdvanced && (
+          <div className="space-y-3 pt-2 animate-fade-in border-t border-border/60">
+            {/* Description & Date inputs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                label="Description"
+                placeholder={category}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+              <Input
+                label="Date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                leftIcon={<Calendar className="h-4 w-4" />}
+              />
+            </div>
+
+            {/* Payment Method Selector */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-foreground/80 uppercase tracking-wide">
+                Payment Method
+              </label>
+              <div className="flex items-center gap-2 flex-wrap">
+                {PAYMENT_METHODS.map((pm) => (
+                  <button
+                    key={pm}
+                    type="button"
+                    onClick={() => setPaymentMethod(pm)}
+                    className={clsx(
+                      'px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all select-none',
+                      paymentMethod === pm
+                        ? 'bg-foreground text-background border-foreground font-bold shadow-sm'
+                        : 'bg-card text-muted-foreground border-border/60 hover:text-foreground'
+                    )}
+                  >
+                    {pm}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Note input */}
+            <Input
+              label="Note (Optional)"
+              placeholder="Remarks or tags"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
           </div>
-        </div>
-
-        {/* Note input */}
-        <Input
-          label="Note (Optional)"
-          placeholder="Add tags, location or remarks"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-        />
+        )}
 
         {/* Save Action */}
         <div className="pt-3">

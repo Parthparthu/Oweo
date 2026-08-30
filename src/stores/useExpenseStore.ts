@@ -1,15 +1,21 @@
 import { create } from 'zustand'
 import { PersonalExpense, ExpenseCategory } from '@/types/expense'
+import { DocumentSnapshot } from 'firebase/firestore'
 import {
   subscribePersonalExpenses,
+  fetchPersonalExpensesPage,
   addPersonalExpense,
   updatePersonalExpense,
   deletePersonalExpense,
+  restorePersonalExpense,
 } from '@/services/firebase/expenseService'
 
 interface ExpenseState {
   expenses: PersonalExpense[]
   isLoading: boolean
+  isLoadingMore: boolean
+  hasMore: boolean
+  lastDoc: DocumentSnapshot | null
   searchQuery: string
   selectedCategory: ExpenseCategory | 'All'
   startDate: string | null
@@ -26,14 +32,19 @@ interface ExpenseState {
   openEditExpense: (expense: PersonalExpense) => void
   closeEditExpense: () => void
   subscribeExpenses: (userId: string) => () => void
+  loadMoreExpenses: (userId: string) => Promise<void>
   createExpense: (data: Omit<PersonalExpense, 'id' | 'createdAt' | 'updatedAt'>) => Promise<PersonalExpense>
   updateExpense: (expenseId: string, partial: Partial<PersonalExpense>) => Promise<void>
   removeExpense: (expenseId: string) => Promise<void>
+  restoreExpense: (expense: PersonalExpense) => Promise<PersonalExpense>
 }
 
-export const useExpenseStore = create<ExpenseState>((set) => ({
+export const useExpenseStore = create<ExpenseState>((set, get) => ({
   expenses: [],
   isLoading: true,
+  isLoadingMore: false,
+  hasMore: false,
+  lastDoc: null,
   searchQuery: '',
   selectedCategory: 'All',
   startDate: null,
@@ -56,7 +67,11 @@ export const useExpenseStore = create<ExpenseState>((set) => ({
     const unsubscribe = subscribePersonalExpenses(
       userId,
       (expenses) => {
-        set({ expenses, isLoading: false })
+        set({
+          expenses,
+          isLoading: false,
+          hasMore: expenses.length >= 50,
+        })
       },
       (error) => {
         console.warn('Expense subscription error:', error)
@@ -64,6 +79,28 @@ export const useExpenseStore = create<ExpenseState>((set) => ({
       }
     )
     return unsubscribe
+  },
+
+  loadMoreExpenses: async (userId: string) => {
+    const { isLoadingMore, hasMore, lastDoc, expenses } = get()
+    if (isLoadingMore || !hasMore) return
+
+    set({ isLoadingMore: true })
+    try {
+      const result = await fetchPersonalExpensesPage(userId, 20, lastDoc)
+      const existingIds = new Set(expenses.map((e) => e.id))
+      const newItems = result.expenses.filter((e) => !existingIds.has(e.id))
+
+      set({
+        expenses: [...expenses, ...newItems],
+        lastDoc: result.lastDoc,
+        hasMore: result.hasMore,
+        isLoadingMore: false,
+      })
+    } catch (err) {
+      console.warn('Load more expenses error:', err)
+      set({ isLoadingMore: false })
+    }
   },
 
   createExpense: async (data) => {
@@ -76,5 +113,9 @@ export const useExpenseStore = create<ExpenseState>((set) => ({
 
   removeExpense: async (expenseId) => {
     await deletePersonalExpense(expenseId)
+  },
+
+  restoreExpense: async (expense: PersonalExpense) => {
+    return await restorePersonalExpense(expense)
   },
 }))

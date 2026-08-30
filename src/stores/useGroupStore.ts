@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { Group, GroupMember } from '@/types/group'
 import { GroupExpense } from '@/types/expense'
 import { Settlement, MemberBalance, ProposedSettlement } from '@/types/settlement'
+import { GroupAuditLog } from '@/types/auditLog'
 import {
   subscribeUserGroups,
   subscribeGroup,
@@ -10,9 +11,12 @@ import {
   subscribeGroupSettlements,
   createGroup,
   addGroupExpense,
+  updateGroupExpense,
+  deleteGroupExpense,
   recordGroupSettlement,
   leaveGroup,
 } from '@/services/firebase/groupService'
+import { subscribeGroupAuditLogs } from '@/services/firebase/auditLogService'
 import { deriveGroupBalances, simplifyDebts } from '@/domain/settlements/settlementEngine'
 
 interface GroupDataCache {
@@ -20,6 +24,7 @@ interface GroupDataCache {
   expenses: GroupExpense[]
   settlements: Settlement[]
   balances: Record<string, MemberBalance>
+  auditLogs: GroupAuditLog[]
 }
 
 interface GroupState {
@@ -32,6 +37,7 @@ interface GroupState {
   activeGroupSettlements: Settlement[]
   activeGroupBalances: Record<string, MemberBalance>
   activeGroupProposedSettlements: ProposedSettlement[]
+  activeGroupAuditLogs: GroupAuditLog[]
 
   // All groups data cache for global dashboard & spending calculations
   allGroupBalances: Record<string, Record<string, MemberBalance>>
@@ -43,6 +49,7 @@ interface GroupState {
   isAddGroupExpenseModalOpen: boolean
   isSettleUpModalOpen: boolean
   isInviteModalOpen: boolean
+  isAuditLogModalOpen: boolean
 
   // Actions
   openCreateGroupModal: () => void
@@ -53,12 +60,16 @@ interface GroupState {
   closeSettleUpModal: () => void
   openInviteModal: () => void
   closeInviteModal: () => void
+  openAuditLogModal: () => void
+  closeAuditLogModal: () => void
 
   setActiveGroupId: (groupId: string | null) => void
   subscribeGroups: (userId: string) => () => void
   subscribeActiveGroupDetails: (groupId: string) => () => void
   createNewGroup: (name: string, description: string, creator: any) => Promise<Group>
   createGroupExpense: (groupId: string, expenseData: any) => Promise<GroupExpense>
+  modifyGroupExpense: (groupId: string, expenseId: string, partial: any, actor: any) => Promise<void>
+  removeGroupExpense: (groupId: string, expenseId: string, actor: any) => Promise<void>
   createGroupSettlement: (groupId: string, settlementData: any) => Promise<Settlement>
   exitGroup: (groupId: string, userId: string) => Promise<void>
 }
@@ -92,6 +103,7 @@ export const useGroupStore = create<GroupState>((set, get) => {
             activeGroupSettlements: activeCache.settlements,
             activeGroupBalances: activeCache.balances,
             activeGroupProposedSettlements: simplifyDebts(Object.values(activeCache.balances)),
+            activeGroupAuditLogs: activeCache.auditLogs || [],
           }
         : {}),
     })
@@ -106,6 +118,7 @@ export const useGroupStore = create<GroupState>((set, get) => {
         expenses: [],
         settlements: [],
         balances: {},
+        auditLogs: [],
       })
     }
 
@@ -148,6 +161,16 @@ export const useGroupStore = create<GroupState>((set, get) => {
       })
     )
 
+    unsubs.push(
+      subscribeGroupAuditLogs(groupId, (auditLogs) => {
+        const c = groupCaches.get(groupId)
+        if (c) {
+          c.auditLogs = auditLogs
+          syncAllGroupsToState()
+        }
+      })
+    )
+
     groupUnsubs.set(groupId, unsubs)
   }
 
@@ -161,6 +184,7 @@ export const useGroupStore = create<GroupState>((set, get) => {
     activeGroupSettlements: [],
     activeGroupBalances: {},
     activeGroupProposedSettlements: [],
+    activeGroupAuditLogs: [],
     allGroupBalances: {},
     allGroupExpenses: [],
     allGroupSettlements: [],
@@ -169,6 +193,7 @@ export const useGroupStore = create<GroupState>((set, get) => {
     isAddGroupExpenseModalOpen: false,
     isSettleUpModalOpen: false,
     isInviteModalOpen: false,
+    isAuditLogModalOpen: false,
 
     openCreateGroupModal: () => set({ isCreateGroupModalOpen: true }),
     closeCreateGroupModal: () => set({ isCreateGroupModalOpen: false }),
@@ -178,6 +203,8 @@ export const useGroupStore = create<GroupState>((set, get) => {
     closeSettleUpModal: () => set({ isSettleUpModalOpen: false }),
     openInviteModal: () => set({ isInviteModalOpen: true }),
     closeInviteModal: () => set({ isInviteModalOpen: false }),
+    openAuditLogModal: () => set({ isAuditLogModalOpen: true }),
+    closeAuditLogModal: () => set({ isAuditLogModalOpen: false }),
 
     setActiveGroupId: (activeGroupId) => {
       set({ activeGroupId })
@@ -189,6 +216,7 @@ export const useGroupStore = create<GroupState>((set, get) => {
           activeGroupSettlements: c.settlements,
           activeGroupBalances: c.balances,
           activeGroupProposedSettlements: simplifyDebts(Object.values(c.balances)),
+          activeGroupAuditLogs: c.auditLogs || [],
         })
       }
     },
@@ -256,6 +284,14 @@ export const useGroupStore = create<GroupState>((set, get) => {
 
     createGroupExpense: async (groupId, expenseData) => {
       return await addGroupExpense(groupId, expenseData)
+    },
+
+    modifyGroupExpense: async (groupId, expenseId, partial, actor) => {
+      await updateGroupExpense(groupId, expenseId, partial, actor)
+    },
+
+    removeGroupExpense: async (groupId, expenseId, actor) => {
+      await deleteGroupExpense(groupId, expenseId, actor)
     },
 
     createGroupSettlement: async (groupId, settlementData) => {

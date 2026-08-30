@@ -1,10 +1,12 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { PersonalSpendingSummary } from '@/features/dashboard/PersonalSpendingSummary'
 import { QuickActions } from '@/features/dashboard/QuickActions'
 import { WhoOwesMeCard } from '@/features/dashboard/WhoOwesMeCard'
 import { RecentExpensesList } from '@/features/dashboard/RecentExpensesList'
+import { AddDirectDebtModal } from '@/features/settlements/AddDirectDebtModal'
 import { useCombinedExpenses } from '@/hooks/useCombinedExpenses'
 import { useGroupStore } from '@/stores/useGroupStore'
+import { useDirectDebtStore } from '@/stores/useDirectDebtStore'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { deriveUserCrossGroupDebts } from '@/domain/settlements/settlementEngine'
 import { useNavigate } from 'react-router-dom'
@@ -15,7 +17,16 @@ export const HomePage: React.FC = () => {
   const user = useAuthStore((state) => state.user)
   const groups = useGroupStore((state) => state.groups)
   const allGroupBalances = useGroupStore((state) => state.allGroupBalances)
+  const directDebts = useDirectDebtStore((state) => state.directDebts)
+  const subscribeDebts = useDirectDebtStore((state) => state.subscribeDebts)
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (user) {
+      const unsub = subscribeDebts(user.uid)
+      return () => unsub()
+    }
+  }, [user, subscribeDebts])
 
   // Calculate live cross-group balances for the current user
   const debtSummary = useMemo(() => {
@@ -52,16 +63,20 @@ export const HomePage: React.FC = () => {
       {/* Quick Action Shortcuts */}
       <QuickActions />
 
-      {/* Shared Debt Status */}
+      {/* Shared Debt Status (Groups + 1:1 Direct Debts) */}
       <WhoOwesMeCard
         owedToUser={debtSummary.owedToUser}
         userOwes={debtSummary.userOwes}
         totalOwedToUserPaise={debtSummary.totalOwedToUserPaise}
         totalUserOwesPaise={debtSummary.totalUserOwesPaise}
+        directDebts={directDebts}
       />
 
       {/* Recent Unified Transactions */}
       <RecentExpensesList expenses={combinedExpenses} limit={6} />
+
+      {/* 1:1 Debt Modal */}
+      <AddDirectDebtModal />
     </div>
   )
 }

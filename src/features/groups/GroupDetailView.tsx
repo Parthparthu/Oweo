@@ -24,6 +24,8 @@ import {
   Receipt,
   LogOut,
   Sparkles,
+  History,
+  ShieldCheck,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -40,6 +42,7 @@ export const GroupDetailView: React.FC = () => {
     activeGroupSettlements,
     activeGroupBalances,
     activeGroupProposedSettlements,
+    activeGroupAuditLogs,
     setActiveGroupId,
     subscribeActiveGroupDetails,
     openAddGroupExpenseModal,
@@ -48,7 +51,7 @@ export const GroupDetailView: React.FC = () => {
     exitGroup,
   } = useGroupStore()
 
-  const [activeTab, setActiveTab] = useState<'expenses' | 'settlements' | 'members'>('expenses')
+  const [activeTab, setActiveTab] = useState<'expenses' | 'settlements' | 'members' | 'activity'>('expenses')
   const [isLeaving, setIsLeaving] = useState(false)
 
   useEffect(() => {
@@ -250,6 +253,11 @@ export const GroupDetailView: React.FC = () => {
             label: 'Members & Balances',
             badge: activeGroupMembers.length,
           },
+          {
+            id: 'activity',
+            label: 'Audit Activity',
+            badge: activeGroupAuditLogs.length,
+          },
         ]}
         activeTab={activeTab}
         onChange={(tab) => setActiveTab(tab as any)}
@@ -421,6 +429,74 @@ export const GroupDetailView: React.FC = () => {
               )
             })}
           </div>
+        </div>
+      )}
+
+      {/* Tab 4: Append-Only Immutable Audit Log Trail */}
+      {activeTab === 'activity' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between p-3 rounded-xl bg-primary/5 border border-primary/20 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              <span>Immutable audit trail. All actions are cryptographically recorded.</span>
+            </div>
+          </div>
+
+          {activeGroupAuditLogs.length === 0 ? (
+            <EmptyState
+              icon={<History className="h-6 w-6" />}
+              title="No activity recorded yet"
+              description="New expenses, member joins, and settlements will automatically log an audit trail here."
+            />
+          ) : (
+            <div className="space-y-2.5">
+              {activeGroupAuditLogs.map((log) => {
+                const isActor = log.actorId === user?.uid
+
+                return (
+                  <Card
+                    key={log.id}
+                    className="p-3.5 flex items-start justify-between gap-3 border-border/70 shadow-sm"
+                  >
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <Avatar
+                        src={log.actorSnapshot?.photoURL}
+                        name={log.actorSnapshot?.displayName || 'Member'}
+                        size="xs"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-foreground">
+                            {isActor ? 'You' : log.actorSnapshot?.displayName || 'Member'}
+                          </span>
+                          <span
+                            className={clsx(
+                              'text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide',
+                              log.action === 'create' && 'bg-primary/10 text-primary',
+                              log.action === 'settle' && 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+                              log.action === 'update' && 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+                              log.action === 'delete' && 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                            )}
+                          >
+                            {log.action}
+                          </span>
+                        </div>
+                        <p className="text-xs text-foreground/90 mt-0.5 font-medium break-words">
+                          {log.summary}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {new Date(log.timestamp).toLocaleString('en-IN', {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 

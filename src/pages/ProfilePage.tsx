@@ -4,6 +4,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { ThemeSettings } from '@/features/profile/ThemeSettings'
 import { BudgetSettings } from '@/features/profile/BudgetSettings'
+import { RecurringBillsSection } from '@/features/expenses/RecurringBillsSection'
 import { ExportSection } from '@/features/profile/ExportSection'
 import { AccountDeletionModal } from '@/features/profile/AccountDeletionModal'
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -101,6 +102,9 @@ export const ProfilePage: React.FC = () => {
 
       {/* Monthly Budget Settings */}
       <BudgetSettings />
+
+      {/* Subscriptions & Recurring Bills */}
+      <RecurringBillsSection />
 
       {/* Theme & Accent Settings */}
       <ThemeSettings />

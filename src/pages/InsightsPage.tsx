@@ -1,11 +1,5 @@
 /**
- * InsightsPage.tsx  (Phase 7 — Scroll-Triggered Reveals)
- *
- * Changes vs original:
- *  ✅ All aggregateByCategory, calculateMonthlyMetrics, generateSmartInsights 100% preserved
- *  + Page-level entrance animation
- *  + Header and each section reveal with useIntersectionReveal
- *  + Staggered section entrance delays
+ * InsightsPage.tsx  (Spending Insights, Forecasting, & Category Budgets)
  */
 import React, { useMemo } from 'react'
 import { useCombinedExpenses } from '@/hooks/useCombinedExpenses'
@@ -14,6 +8,7 @@ import { CategoryDonutChart } from '@/features/insights/CategoryDonutChart'
 import { SpendingBarChart } from '@/features/insights/SpendingBarChart'
 import { MonthOverMonthCard } from '@/features/insights/MonthOverMonthCard'
 import { SmartInsightsList } from '@/features/insights/SmartInsightsList'
+import { CategoryBudgetsCard } from '@/features/insights/CategoryBudgetsCard'
 import {
   aggregateByCategory,
   calculateMonthlyMetrics,
@@ -28,7 +23,12 @@ export const InsightsPage: React.FC = () => {
 
   const categoryData = useMemo(() => aggregateByCategory(expenses), [expenses])
   const metrics = useMemo(
-    () => calculateMonthlyMetrics(expenses, profile?.monthlyBudgetPaise || 0),
+    () =>
+      calculateMonthlyMetrics(
+        expenses,
+        profile?.monthlyBudgetPaise || 0,
+        profile?.categoryBudgetsPaise || {}
+      ),
     [expenses, profile]
   )
   const insights = useMemo(
@@ -64,14 +64,19 @@ export const InsightsPage: React.FC = () => {
           Spending Insights &amp; Analytics
         </h2>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Factual visualizations of where your money went
+          Factual visualizations of where your money went and why
         </p>
       </div>
 
-      {/* Smart Insights */}
+      {/* Smart Insights & Observations */}
       <SmartInsightsList insights={insights} />
 
-      {/* Month-over-Month */}
+      {/* Category Budgets Progress & Limits */}
+      {metrics.categoryBudgetMetrics.length > 0 && (
+        <CategoryBudgetsCard categoryBudgets={metrics.categoryBudgetMetrics} />
+      )}
+
+      {/* Month-over-Month & Velocity Forecasting */}
       <MonthOverMonthCard metrics={metrics} />
 
       {/* Charts Grid */}
