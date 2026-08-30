@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react'
-import { PersonalSpendingSummary } from '@/features/dashboard/PersonalSpendingSummary'
+import { WalletBalanceCard } from '@/features/dashboard/WalletBalanceCard'
 import { QuickActions } from '@/features/dashboard/QuickActions'
 import { WhoOwesMeCard } from '@/features/dashboard/WhoOwesMeCard'
 import { RecentExpensesList } from '@/features/dashboard/RecentExpensesList'
@@ -9,7 +9,6 @@ import { useGroupStore } from '@/stores/useGroupStore'
 import { useDirectDebtStore } from '@/stores/useDirectDebtStore'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { deriveUserCrossGroupDebts } from '@/domain/settlements/settlementEngine'
-import { useNavigate } from 'react-router-dom'
 
 export const HomePage: React.FC = () => {
   const combinedExpenses = useCombinedExpenses()
@@ -19,7 +18,6 @@ export const HomePage: React.FC = () => {
   const allGroupBalances = useGroupStore((state) => state.allGroupBalances)
   const directDebts = useDirectDebtStore((state) => state.directDebts)
   const subscribeDebts = useDirectDebtStore((state) => state.subscribeDebts)
-  const navigate = useNavigate()
 
   useEffect(() => {
     if (user) {
@@ -53,11 +51,9 @@ export const HomePage: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-6">
-      {/* Personal Spending Hero (Unified Personal + Group Share) */}
-      <PersonalSpendingSummary
-        expenses={combinedExpenses}
-        monthlyBudgetPaise={profile?.monthlyBudgetPaise || 0}
-        onSetBudgetClick={() => navigate('/profile')}
+      {/* Wallet Balance Hero */}
+      <WalletBalanceCard
+        walletBalancePaise={profile?.walletBalancePaise || 0}
       />
 
       {/* Quick Action Shortcuts */}

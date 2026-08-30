@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useExpenseStore } from '@/stores/useExpenseStore'
 import { useToast } from '@/components/ui/Toast'
-import { ALL_CATEGORIES } from '@/domain/expenses/categories'
+import { ALL_EXPENSE_CATEGORIES, ALL_INCOME_CATEGORIES } from '@/domain/expenses/categories'
 import { parseAmountInput, paiseToInputString } from '@/domain/money/money'
-import { ExpenseCategory, PaymentMethod } from '@/types/expense'
+import { TransactionCategory, PaymentMethod, TransactionType } from '@/types/expense'
 import { Trash2 } from 'lucide-react'
 
 const PAYMENT_METHODS: PaymentMethod[] = ['UPI', 'Card', 'Cash', 'Net Banking']
@@ -16,8 +16,9 @@ export const EditExpenseModal: React.FC = () => {
   const { editingExpense, closeEditExpense, updateExpense, removeExpense, restoreExpense } = useExpenseStore()
   const { showToast } = useToast()
 
+  const [transactionType, setTransactionType] = useState<TransactionType>('EXPENSE')
   const [amountStr, setAmountStr] = useState('')
-  const [category, setCategory] = useState<ExpenseCategory>('Food')
+  const [category, setCategory] = useState<TransactionCategory>('Food')
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('UPI')
@@ -29,6 +30,7 @@ export const EditExpenseModal: React.FC = () => {
 
   useEffect(() => {
     if (editingExpense) {
+      setTransactionType(editingExpense.type || 'EXPENSE')
       setAmountStr(paiseToInputString(editingExpense.amountPaise))
       setCategory(editingExpense.category)
       setTitle(editingExpense.title)
@@ -54,7 +56,8 @@ export const EditExpenseModal: React.FC = () => {
     setError('')
 
     try {
-      await updateExpense(editingExpense.id, {
+      await updateExpense(editingExpense, {
+        type: transactionType,
         amountPaise: parsedPaise,
         category,
         title: title.trim() || category,
@@ -62,10 +65,10 @@ export const EditExpenseModal: React.FC = () => {
         paymentMethod,
         note: note.trim() || undefined,
       })
-      showToast('Expense updated', 'success')
+      showToast('Transaction updated', 'success')
       closeEditExpense()
     } catch (err: any) {
-      setError(err?.message || 'Failed to update expense')
+      setError(err?.message || 'Failed to update transaction')
     } finally {
       setIsSubmitting(false)
     }
@@ -76,12 +79,12 @@ export const EditExpenseModal: React.FC = () => {
     const deletedExpense = { ...editingExpense }
     setIsDeleting(true)
     try {
-      await removeExpense(editingExpense.id)
-      showToast('Expense deleted', 'info', 5000, {
+      await removeExpense(editingExpense)
+      showToast('Transaction deleted', 'info', 5000, {
         label: 'Undo',
         onClick: async () => {
           await restoreExpense(deletedExpense)
-          showToast('Expense restored', 'success')
+          showToast('Transaction restored', 'success')
         },
       })
       closeEditExpense()
@@ -125,6 +128,37 @@ export const EditExpenseModal: React.FC = () => {
         </div>
       ) : (
         <form onSubmit={handleUpdate} className="space-y-4">
+          <div className="flex bg-muted p-1 rounded-xl">
+            <button
+              type="button"
+              onClick={() => {
+                setTransactionType('EXPENSE')
+                if (transactionType === 'INCOME') setCategory('Food')
+              }}
+              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                transactionType === 'EXPENSE'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Expense
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setTransactionType('INCOME')
+                if (transactionType === 'EXPENSE') setCategory('Pocket Money')
+              }}
+              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                transactionType === 'INCOME'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Income
+            </button>
+          </div>
+
           <AmountInput
             value={amountStr}
             onChange={(val) => {
@@ -140,10 +174,10 @@ export const EditExpenseModal: React.FC = () => {
             </label>
             <select
               value={category}
-              onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
+              onChange={(e) => setCategory(e.target.value as TransactionCategory)}
               className="flex h-11 w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
-              {ALL_CATEGORIES.map((c) => (
+              {(transactionType === 'INCOME' ? ALL_INCOME_CATEGORIES : ALL_EXPENSE_CATEGORIES).map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>

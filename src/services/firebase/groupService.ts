@@ -15,10 +15,12 @@ import {
   arrayRemove,
   DocumentSnapshot,
   Unsubscribe,
+  writeBatch,
+  increment,
 } from 'firebase/firestore'
 import { db } from './config'
 import { Group, GroupMember, GroupInvite } from '@/types/group'
-import { GroupExpense } from '@/types/expense'
+import { GroupExpense, PersonalTransaction } from '@/types/expense'
 import { Settlement } from '@/types/settlement'
 import { generateId, generateInviteCode } from '@/utils/idGenerator'
 import { sanitizeForFirestore } from '@/utils/firestoreUtils'
@@ -423,11 +425,63 @@ export async function recordGroupSettlement(
     createdAt: now,
   }
 
-  await setDoc(doc(db, 'groups', groupId, 'settlements', id), sanitizeForFirestore(settlement))
+  const batch = writeBatch(db)
 
-  await updateDoc(doc(db, 'groups', groupId), {
+  // 1. Create the Settlement document in the group
+  const settlementRef = doc(db, 'groups', groupId, 'settlements', id)
+  batch.set(settlementRef, sanitizeForFirestore(settlement))
+
+  // 2. Update Group's updatedAt
+  const groupRef = doc(db, 'groups', groupId)
+  batch.update(groupRef, { updatedAt: now })
+
+  const dateStr = new Date().toISOString().split('T')[0]
+
+  // 3. Create EXPENSE for Payer
+  const payerExpenseId = generateId('exp')
+  const payerExpense: PersonalTransaction = {
+    id: payerExpenseId,
+    userId: settlement.payerId,
+    type: 'EXPENSE',
+    amountPaise: settlement.amountPaise,
+    category: 'Settlement',
+    title: `Settled up with ${settlement.receiverSnapshot.displayName}`,
+    date: dateStr,
+    linkedSettlementId: id,
+    isGroupExpense: false,
+    paymentMethod: 'Other',
+    createdAt: now,
     updatedAt: now,
-  })
+  }
+  batch.set(doc(db, 'expenses', payerExpenseId), sanitizeForFirestore(payerExpense))
+
+  // 4. Deduct from Payer's wallet
+  const payerUserRef = doc(db, 'users', settlement.payerId)
+  batch.update(payerUserRef, { walletBalancePaise: increment(-settlement.amountPaise) })
+
+  // 5. Create INCOME for Receiver
+  const receiverIncomeId = generateId('exp')
+  const receiverIncome: PersonalTransaction = {
+    id: receiverIncomeId,
+    userId: settlement.receiverId,
+    type: 'INCOME',
+    amountPaise: settlement.amountPaise,
+    category: 'Settlement',
+    title: `Settled up by ${settlement.payerSnapshot.displayName}`,
+    date: dateStr,
+    linkedSettlementId: id,
+    isGroupExpense: false,
+    paymentMethod: 'Other',
+    createdAt: now,
+    updatedAt: now,
+  }
+  batch.set(doc(db, 'expenses', receiverIncomeId), sanitizeForFirestore(receiverIncome))
+
+  // 6. Add to Receiver's wallet
+  const receiverUserRef = doc(db, 'users', settlement.receiverId)
+  batch.update(receiverUserRef, { walletBalancePaise: increment(settlement.amountPaise) })
+
+  await batch.commit()
 
   // Append to audit log
   await recordAuditLog({

@@ -1,10 +1,10 @@
-import { PersonalExpense } from '@/types/expense'
+﻿import { PersonalTransaction } from '@/types/expense'
 import { paiseToRupees } from '@/domain/money/money'
 
 /**
  * Generates and triggers browser download of a CSV file for personal expenses.
  */
-export function exportExpensesToCSV(expenses: PersonalExpense[], filename: string = 'oweo-expenses.csv') {
+export function exportExpensesToCSV(expenses: PersonalTransaction[], filename: string = 'oweo-expenses.csv') {
   const headers = ['Date', 'Title', 'Category', 'Amount (INR)', 'Payment Method', 'Note']
 
   const rows = expenses.map((e) => {

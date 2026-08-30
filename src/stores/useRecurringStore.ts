@@ -1,6 +1,6 @@
-import { create } from 'zustand'
+﻿import { create } from 'zustand'
 import { RecurringExpense, DetectedRecurringPattern } from '@/types/recurring'
-import { PersonalExpense } from '@/types/expense'
+import { PersonalTransaction } from '@/types/expense'
 import {
   subscribeRecurringExpenses,
   createRecurringExpense,
@@ -29,7 +29,7 @@ interface RecurringState {
   ) => Promise<void>
   toggleActive: (id: string, isActive: boolean) => Promise<void>
   removeRecurring: (id: string) => Promise<void>
-  scanForPatterns: (expenses: PersonalExpense[]) => void
+  scanForPatterns: (expenses: PersonalTransaction[]) => void
   dismissPattern: (title: string, amountPaise: number) => void
   acceptPattern: (
     pattern: DetectedRecurringPattern,
@@ -84,7 +84,7 @@ export const useRecurringStore = create<RecurringState>((set, get) => ({
     await deleteRecurringExpense(id)
   },
 
-  scanForPatterns: (expenses: PersonalExpense[]) => {
+  scanForPatterns: (expenses: PersonalTransaction[]) => {
     const { recurringExpenses } = get()
     const detected = detectRecurringExpenses(expenses, recurringExpenses)
     set({ detectedPatterns: detected })

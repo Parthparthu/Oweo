@@ -1,17 +1,17 @@
 import { describe, it, expect } from 'vitest'
 import { detectRecurringExpenses } from '@/domain/expenses/recurringDetector'
-import { PersonalExpense } from '@/types/expense'
+import { PersonalTransaction } from '@/types/expense'
 import { RecurringExpense } from '@/types/recurring'
 
 describe('Recurring Pattern Detector', () => {
-  const expenses: PersonalExpense[] = [
+  const expenses: PersonalTransaction[] = [
     // Netflix recurring on 5th of each month (₹649)
     {
       id: 'e1',
       userId: 'u1',
       title: 'Netflix Subscription',
       amountPaise: 64900,
-      category: 'Subscriptions',
+      type: 'EXPENSE', category: 'Subscriptions',
       date: '2026-06-05',
       createdAt: 1,
       updatedAt: 1,
@@ -21,7 +21,7 @@ describe('Recurring Pattern Detector', () => {
       userId: 'u1',
       title: 'Netflix Subscription',
       amountPaise: 64900,
-      category: 'Subscriptions',
+      type: 'EXPENSE', category: 'Subscriptions',
       date: '2026-07-05',
       createdAt: 2,
       updatedAt: 2,
@@ -31,7 +31,7 @@ describe('Recurring Pattern Detector', () => {
       userId: 'u1',
       title: 'Netflix Subscription',
       amountPaise: 64900,
-      category: 'Subscriptions',
+      type: 'EXPENSE', category: 'Subscriptions',
       date: '2026-08-05',
       createdAt: 3,
       updatedAt: 3,
@@ -42,7 +42,7 @@ describe('Recurring Pattern Detector', () => {
       userId: 'u1',
       title: 'House Rent',
       amountPaise: 1500000,
-      category: 'Rent',
+      type: 'EXPENSE', category: 'Rent',
       date: '2026-07-01',
       createdAt: 4,
       updatedAt: 4,
@@ -52,7 +52,7 @@ describe('Recurring Pattern Detector', () => {
       userId: 'u1',
       title: 'House Rent',
       amountPaise: 1500000,
-      category: 'Rent',
+      type: 'EXPENSE', category: 'Rent',
       date: '2026-08-01',
       createdAt: 5,
       updatedAt: 5,
@@ -63,7 +63,7 @@ describe('Recurring Pattern Detector', () => {
       userId: 'u1',
       title: 'Dinner at cafe',
       amountPaise: 85000,
-      category: 'Food',
+      type: 'EXPENSE', category: 'Food',
       date: '2026-08-12',
       createdAt: 6,
       updatedAt: 6,

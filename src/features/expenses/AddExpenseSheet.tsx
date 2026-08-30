@@ -8,12 +8,13 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { useToast } from '@/components/ui/Toast'
 import {
   CATEGORY_DEFINITIONS,
-  ALL_CATEGORIES,
+  ALL_EXPENSE_CATEGORIES,
+  ALL_INCOME_CATEGORIES,
 } from '@/domain/expenses/categories'
 import { parseQuickExpenseInput } from '@/domain/expenses/heuristicParser'
 import { parseAmountInput } from '@/domain/money/money'
 import { toISODateString } from '@/utils/dateUtils'
-import { ExpenseCategory, PaymentMethod } from '@/types/expense'
+import { TransactionCategory, PaymentMethod, TransactionType } from '@/types/expense'
 import {
   Utensils,
   Car,
@@ -31,6 +32,12 @@ import {
   Wand2,
   Calendar,
   SlidersHorizontal,
+  Wallet,
+  Briefcase,
+  TrendingUp,
+  RotateCcw,
+  ArrowDownCircle,
+  ArrowUpCircle
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -47,6 +54,10 @@ const ICONS: Record<string, React.ReactNode> = {
   HeartPulse: <HeartPulse className="h-4 w-4" />,
   Sparkles: <Sparkles className="h-4 w-4" />,
   Gift: <Gift className="h-4 w-4" />,
+  Wallet: <Wallet className="h-4 w-4" />,
+  Briefcase: <Briefcase className="h-4 w-4" />,
+  TrendingUp: <TrendingUp className="h-4 w-4" />,
+  RotateCcw: <RotateCcw className="h-4 w-4" />,
   MoreHorizontal: <MoreHorizontal className="h-4 w-4" />,
 }
 
@@ -57,9 +68,10 @@ export const AddExpenseSheet: React.FC = () => {
   const user = useAuthStore((state) => state.user)
   const { showToast } = useToast()
 
+  const [transactionType, setTransactionType] = useState<TransactionType>('EXPENSE')
   const [quickInput, setQuickInput] = useState('')
   const [amountStr, setAmountStr] = useState('')
-  const [category, setCategory] = useState<ExpenseCategory>('Food')
+  const [category, setCategory] = useState<TransactionCategory>('Food')
   const [title, setTitle] = useState('')
   const [date, setDate] = useState(toISODateString())
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('UPI')
@@ -71,6 +83,7 @@ export const AddExpenseSheet: React.FC = () => {
   // Reset form on open - Default to Smart NLP Quick Entry
   useEffect(() => {
     if (isAddExpenseSheetOpen) {
+      setTransactionType('EXPENSE')
       setQuickInput('')
       setAmountStr('')
       setCategory('Food')
@@ -97,11 +110,20 @@ export const AddExpenseSheet: React.FC = () => {
     if (parsed.amountPaise) {
       setAmountStr((parsed.amountPaise / 100).toString())
     }
-    if (parsed.category) {
+    if (parsed.category && transactionType === 'EXPENSE') {
       setCategory(parsed.category)
     }
     if (parsed.title) {
       setTitle(parsed.title)
+    }
+  }
+
+  const handleTransactionTypeChange = (type: TransactionType) => {
+    setTransactionType(type)
+    if (type === 'INCOME') {
+      setCategory('Pocket Money')
+    } else {
+      setCategory('Food')
     }
   }
 
@@ -119,7 +141,7 @@ export const AddExpenseSheet: React.FC = () => {
       if (parsed.amountPaise && !amountStr) {
         effectiveAmount = (parsed.amountPaise / 100).toString()
       }
-      if (parsed.category && (!category || category === 'Food')) {
+      if (parsed.category && transactionType === 'EXPENSE' && (!category || category === 'Food')) {
         effectiveCategory = parsed.category
       }
       if (parsed.title && !title) {
@@ -129,7 +151,7 @@ export const AddExpenseSheet: React.FC = () => {
 
     const parsedPaise = parseAmountInput(effectiveAmount)
     if (!parsedPaise || parsedPaise <= 0) {
-      setError('Please enter an amount (e.g. 180 dinner)')
+      setError('Please enter a valid amount')
       return
     }
 
@@ -144,6 +166,7 @@ export const AddExpenseSheet: React.FC = () => {
     try {
       const saved = await createExpense({
         userId: user.uid,
+        type: transactionType,
         amountPaise: parsedPaise,
         category: effectiveCategory,
         title: effectiveTitle.trim() || effectiveCategory,
@@ -159,64 +182,98 @@ export const AddExpenseSheet: React.FC = () => {
         {
           label: 'Undo',
           onClick: async () => {
-            await removeExpense(saved.id)
-            showToast('Expense removed', 'info')
+            await removeExpense(saved)
+            showToast('Transaction removed', 'info')
           },
         }
       )
       closeAddExpenseSheet()
     } catch (err: any) {
-      setError(err?.message || 'Failed to save expense')
+      setError(err?.message || 'Failed to save transaction')
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  const displayedCategories = transactionType === 'INCOME' ? ALL_INCOME_CATEGORIES : ALL_EXPENSE_CATEGORIES
+
   return (
     <Sheet
       isOpen={isAddExpenseSheetOpen}
       onClose={closeAddExpenseSheet}
-      title="Add Expense"
-      description="Type naturally or enter amount to log spending"
+      title="Add Transaction"
+      description="Record an income or expense"
     >
       <form onSubmit={handleSave} className="space-y-4">
-        {/* NLP Quick Input (Default Experience) */}
-        <div className="space-y-2.5 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-4 rounded-2xl border border-primary/20">
-          <label className="block text-xs font-extrabold text-primary uppercase tracking-wide flex items-center gap-1.5">
-            <Wand2 className="h-3.5 w-3.5" />
-            <span>Quick Natural Entry</span>
-          </label>
-          <Input
-            value={quickInput}
-            onChange={(e) => handleQuickInputChange(e.target.value)}
-            placeholder="e.g. 250 Swiggy, 50 auto, 1200 groceries"
-            autoFocus
-            className="text-base font-semibold"
-          />
-
-          {/* Real-time Parsed Preview Badges */}
-          <div className="flex items-center gap-2 flex-wrap pt-1 min-h-[32px]">
-            {amountStr ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary text-primary-foreground font-black text-xs shadow-sm">
-                ₹{amountStr}
-              </span>
-            ) : (
-              <span className="text-xs text-muted-foreground italic">Type amount and description above</span>
+        {/* Transaction Type Segmented Control */}
+        <div className="flex bg-muted p-1 rounded-xl">
+          <button
+            type="button"
+            onClick={() => handleTransactionTypeChange('EXPENSE')}
+            className={clsx(
+              'flex-1 flex items-center justify-center gap-2 py-2 text-sm font-bold rounded-lg transition-all',
+              transactionType === 'EXPENSE'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             )}
-            {amountStr && (
-              <>
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-card border border-border/80 font-bold text-xs text-foreground">
-                  {category}
-                </span>
-                {title && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-card border border-border/80 font-medium text-xs text-muted-foreground truncate max-w-[150px]">
-                    "{title}"
-                  </span>
-                )}
-              </>
+          >
+            <ArrowUpCircle className="h-4 w-4 text-destructive" />
+            Expense
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTransactionTypeChange('INCOME')}
+            className={clsx(
+              'flex-1 flex items-center justify-center gap-2 py-2 text-sm font-bold rounded-lg transition-all',
+              transactionType === 'INCOME'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             )}
-          </div>
+          >
+            <ArrowDownCircle className="h-4 w-4 text-emerald-500" />
+            Income
+          </button>
         </div>
+
+        {/* NLP Quick Input (Default Experience) */}
+        {transactionType === 'EXPENSE' && (
+          <div className="space-y-2.5 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-4 rounded-2xl border border-primary/20">
+            <label className="block text-xs font-extrabold text-primary uppercase tracking-wide flex items-center gap-1.5">
+              <Wand2 className="h-3.5 w-3.5" />
+              <span>Quick Natural Entry</span>
+            </label>
+            <Input
+              value={quickInput}
+              onChange={(e) => handleQuickInputChange(e.target.value)}
+              placeholder="e.g. 250 Swiggy, 50 auto, 1200 groceries"
+              autoFocus
+              className="text-base font-semibold"
+            />
+
+            {/* Real-time Parsed Preview Badges */}
+            <div className="flex items-center gap-2 flex-wrap pt-1 min-h-[32px]">
+              {amountStr ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary text-primary-foreground font-black text-xs shadow-sm">
+                  ₹{amountStr}
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground italic">Type amount and description above</span>
+              )}
+              {amountStr && (
+                <>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-card border border-border/80 font-bold text-xs text-foreground">
+                    {category}
+                  </span>
+                  {title && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-card border border-border/80 font-medium text-xs text-muted-foreground truncate max-w-[150px]">
+                      "{title}"
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Quick Amount Keypad or Chips (if user wants to type or adjust amount directly) */}
         <AmountInput
@@ -235,7 +292,7 @@ export const AddExpenseSheet: React.FC = () => {
             Category
           </label>
           <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 gap-1.5 xs:gap-2 max-h-40 overflow-y-auto overscroll-contain pr-1">
-            {ALL_CATEGORIES.map((catKey) => {
+            {displayedCategories.map((catKey) => {
               const meta = CATEGORY_DEFINITIONS[catKey]
               const isSelected = category === catKey
               return (
@@ -246,12 +303,14 @@ export const AddExpenseSheet: React.FC = () => {
                   className={clsx(
                     'flex items-center gap-1.5 xs:gap-2 p-2 xs:p-2.5 min-h-[38px] rounded-xl border text-xs font-semibold transition-all select-none text-left',
                     isSelected
-                      ? 'bg-primary text-primary-foreground border-primary shadow-sm font-bold scale-[1.02]'
+                      ? transactionType === 'INCOME' 
+                          ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm font-bold scale-[1.02]' 
+                          : 'bg-primary text-primary-foreground border-primary shadow-sm font-bold scale-[1.02]'
                       : 'bg-card text-foreground/90 border-border/60 hover:bg-muted/70'
                   )}
                 >
-                  <span className={clsx('shrink-0', isSelected ? 'text-primary-foreground' : 'text-primary')}>
-                    {ICONS[meta.icon] || <MoreHorizontal className="h-4 w-4" />}
+                  <span className={clsx('shrink-0', isSelected ? 'text-white' : transactionType === 'INCOME' ? 'text-emerald-500' : 'text-primary')}>
+                    {ICONS[meta?.icon] || <MoreHorizontal className="h-4 w-4" />}
                   </span>
                   <span className="truncate">{catKey}</span>
                 </button>
@@ -334,7 +393,7 @@ export const AddExpenseSheet: React.FC = () => {
             isLoading={isSubmitting}
             className="w-full justify-center text-sm font-bold shadow-md shadow-primary/25 h-12"
           >
-            Save Expense
+            {transactionType === 'INCOME' ? 'Save Income' : 'Save Expense'}
           </Button>
         </div>
       </form>

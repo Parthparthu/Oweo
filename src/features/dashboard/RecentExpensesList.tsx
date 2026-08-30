@@ -1,14 +1,14 @@
 /**
- * RecentExpensesList.tsx  (Phase 5 — Staggered List)
+ * RecentExpensesList.tsx  (Phase 5 â€” Staggered List)
  *
  * Changes vs original:
- *  ✅ All expense data, editing callbacks 100% preserved
+ *  âœ… All expense data, editing callbacks 100% preserved
  *  + StaggerContainer for staggered item entrance
  *  + "View All" link gets arrow animation on hover
  */
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { PersonalExpense } from '@/types/expense'
+import { PersonalTransaction } from '@/types/expense'
 import { ExpenseListItem } from '@/features/expenses/ExpenseListItem'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useExpenseStore } from '@/stores/useExpenseStore'
@@ -17,7 +17,7 @@ import { motion } from 'framer-motion'
 import { StaggerContainer, StaggerItem } from '@/components/ui/StaggerContainer'
 
 interface Props {
-  expenses: PersonalExpense[]
+  expenses: PersonalTransaction[]
   limit?: number
 }
 
@@ -31,7 +31,7 @@ export const RecentExpensesList: React.FC<Props> = ({ expenses, limit = 5 }) => 
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-base sm:text-lg font-bold tracking-tight text-foreground">
-          Recent Expenses
+          Recent Transactions
         </h3>
         {expenses.length > limit && (
           <motion.div whileHover={{ x: 2 }} transition={{ type: 'spring', stiffness: 300, damping: 25 }}>
@@ -49,9 +49,9 @@ export const RecentExpensesList: React.FC<Props> = ({ expenses, limit = 5 }) => 
       {recent.length === 0 ? (
         <EmptyState
           icon={<Receipt className="h-6 w-6" />}
-          title="No expenses recorded yet"
-          description="Record your first chai, dinner, or travel spend to get instant insights."
-          actionLabel="+ Add First Expense"
+          title="No transactions recorded yet"
+          description="Record your first income or expense to see your live wallet balance."
+          actionLabel="+ Add First Transaction"
           onAction={openAddExpense}
         />
       ) : (

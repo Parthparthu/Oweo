@@ -3,7 +3,6 @@ import { Card } from '@/components/ui/Card'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { ThemeSettings } from '@/features/profile/ThemeSettings'
-import { BudgetSettings } from '@/features/profile/BudgetSettings'
 import { RecurringBillsSection } from '@/features/expenses/RecurringBillsSection'
 import { ExportSection } from '@/features/profile/ExportSection'
 import { AccountDeletionModal } from '@/features/profile/AccountDeletionModal'
@@ -64,7 +63,7 @@ export const ProfilePage: React.FC = () => {
           Profile &amp; Settings
         </h2>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Manage your preferences, budget, and account
+          Manage your preferences and account
         </p>
       </div>
 
@@ -99,9 +98,6 @@ export const ProfilePage: React.FC = () => {
           </Button>
         </div>
       </Card>
-
-      {/* Monthly Budget Settings */}
-      <BudgetSettings />
 
       {/* Subscriptions & Recurring Bills */}
       <RecurringBillsSection />

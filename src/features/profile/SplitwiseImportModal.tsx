@@ -88,6 +88,7 @@ export const SplitwiseImportModal: React.FC<Props> = ({ isOpen, onClose }) => {
       for (const item of preview.validExpenses) {
         await createExpense({
           userId: user.uid,
+          type: 'EXPENSE',
           title: item.title,
           amountPaise: item.userSharePaise,
           category: item.category,

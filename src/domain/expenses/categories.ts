@@ -1,14 +1,14 @@
-import { ExpenseCategory } from '@/types/expense'
+import { TransactionCategory } from '@/types/expense'
 
 export interface CategoryMetadata {
-  id: ExpenseCategory
+  id: TransactionCategory
   label: string
   icon: string
   color: string // Tailwind color class or hex
   keywords: string[]
 }
 
-export const CATEGORY_DEFINITIONS: Record<ExpenseCategory, CategoryMetadata> = {
+export const CATEGORY_DEFINITIONS: Record<TransactionCategory, CategoryMetadata> = {
   Food: {
     id: 'Food',
     label: 'Food & Dining',
@@ -120,6 +120,23 @@ export const CATEGORY_DEFINITIONS: Record<ExpenseCategory, CategoryMetadata> = {
     color: '#64748b', // Slate
     keywords: ['other', 'misc', 'miscellaneous', 'cash', 'transfer'],
   },
+  // Income specific fallbacks (if someone uses CATEGORY_DEFINITIONS directly)
+  'Pocket Money': { id: 'Pocket Money', label: 'Pocket Money', icon: 'Wallet', color: '#10b981', keywords: [] },
+  'Salary': { id: 'Salary', label: 'Salary', icon: 'Briefcase', color: '#059669', keywords: [] },
+  'Cashback': { id: 'Cashback', label: 'Cashback', icon: 'Gift', color: '#34d399', keywords: [] },
+  'Refund': { id: 'Refund', label: 'Refund', icon: 'RotateCcw', color: '#f59e0b', keywords: [] },
+  'Investment': { id: 'Investment', label: 'Investment', icon: 'TrendingUp', color: '#3b82f6', keywords: [] },
 }
 
-export const ALL_CATEGORIES = Object.keys(CATEGORY_DEFINITIONS) as ExpenseCategory[]
+export const INCOME_CATEGORY_DEFINITIONS: Record<string, CategoryMetadata> = {
+  'Pocket Money': CATEGORY_DEFINITIONS['Pocket Money'],
+  'Salary': CATEGORY_DEFINITIONS['Salary'],
+  'Cashback': CATEGORY_DEFINITIONS['Cashback'],
+  'Refund': CATEGORY_DEFINITIONS['Refund'],
+  'Investment': CATEGORY_DEFINITIONS['Investment'],
+  'Other': CATEGORY_DEFINITIONS['Other'],
+}
+
+export const ALL_CATEGORIES = Object.keys(CATEGORY_DEFINITIONS) as TransactionCategory[]
+export const ALL_EXPENSE_CATEGORIES = ALL_CATEGORIES.filter(c => !(c in INCOME_CATEGORY_DEFINITIONS) || c === 'Other')
+export const ALL_INCOME_CATEGORIES = Object.keys(INCOME_CATEGORY_DEFINITIONS) as TransactionCategory[]

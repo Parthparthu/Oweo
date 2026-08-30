@@ -1,42 +1,42 @@
 import { create } from 'zustand'
-import { PersonalExpense, ExpenseCategory } from '@/types/expense'
+import { PersonalTransaction, TransactionCategory } from '@/types/expense'
 import { DocumentSnapshot } from 'firebase/firestore'
 import {
-  subscribePersonalExpenses,
-  fetchPersonalExpensesPage,
-  addPersonalExpense,
-  updatePersonalExpense,
-  deletePersonalExpense,
-  restorePersonalExpense,
+  subscribePersonalTransactions,
+  fetchPersonalTransactionsPage,
+  addPersonalTransaction,
+  updatePersonalTransaction,
+  deletePersonalTransaction,
+  restorePersonalTransaction,
 } from '@/services/firebase/expenseService'
 
 interface ExpenseState {
-  expenses: PersonalExpense[]
+  expenses: PersonalTransaction[]
   isLoading: boolean
   isLoadingMore: boolean
   hasMore: boolean
   lastDoc: DocumentSnapshot | null
   searchQuery: string
-  selectedCategory: ExpenseCategory | 'All'
+  selectedCategory: TransactionCategory | 'All'
   startDate: string | null
   endDate: string | null
   isAddExpenseSheetOpen: boolean
-  editingExpense: PersonalExpense | null
+  editingExpense: PersonalTransaction | null
 
   // Actions
   setSearchQuery: (query: string) => void
-  setSelectedCategory: (category: ExpenseCategory | 'All') => void
+  setSelectedCategory: (category: TransactionCategory | 'All') => void
   setDateRange: (start: string | null, end: string | null) => void
   openAddExpenseSheet: () => void
   closeAddExpenseSheet: () => void
-  openEditExpense: (expense: PersonalExpense) => void
+  openEditExpense: (expense: PersonalTransaction) => void
   closeEditExpense: () => void
   subscribeExpenses: (userId: string) => () => void
   loadMoreExpenses: (userId: string) => Promise<void>
-  createExpense: (data: Omit<PersonalExpense, 'id' | 'createdAt' | 'updatedAt'>) => Promise<PersonalExpense>
-  updateExpense: (expenseId: string, partial: Partial<PersonalExpense>) => Promise<void>
-  removeExpense: (expenseId: string) => Promise<void>
-  restoreExpense: (expense: PersonalExpense) => Promise<PersonalExpense>
+  createExpense: (data: Omit<PersonalTransaction, 'id' | 'createdAt' | 'updatedAt'>) => Promise<PersonalTransaction>
+  updateExpense: (expense: PersonalTransaction, partial: Partial<PersonalTransaction>) => Promise<void>
+  removeExpense: (expense: PersonalTransaction) => Promise<void>
+  restoreExpense: (expense: PersonalTransaction) => Promise<PersonalTransaction>
 }
 
 export const useExpenseStore = create<ExpenseState>((set, get) => ({
@@ -64,7 +64,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   subscribeExpenses: (userId: string) => {
     set({ isLoading: true })
-    const unsubscribe = subscribePersonalExpenses(
+    const unsubscribe = subscribePersonalTransactions(
       userId,
       (expenses) => {
         set({
@@ -87,7 +87,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
     set({ isLoadingMore: true })
     try {
-      const result = await fetchPersonalExpensesPage(userId, 20, lastDoc)
+      const result = await fetchPersonalTransactionsPage(userId, 20, lastDoc)
       const existingIds = new Set(expenses.map((e) => e.id))
       const newItems = result.expenses.filter((e) => !existingIds.has(e.id))
 
@@ -104,18 +104,18 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   },
 
   createExpense: async (data) => {
-    return await addPersonalExpense(data)
+    return await addPersonalTransaction(data)
   },
 
-  updateExpense: async (expenseId, partial) => {
-    await updatePersonalExpense(expenseId, partial)
+  updateExpense: async (expense: PersonalTransaction, partial: Partial<PersonalTransaction>) => {
+    await updatePersonalTransaction(expense.id, partial, expense)
   },
 
-  removeExpense: async (expenseId) => {
-    await deletePersonalExpense(expenseId)
+  removeExpense: async (expense: PersonalTransaction) => {
+    await deletePersonalTransaction(expense)
   },
 
-  restoreExpense: async (expense: PersonalExpense) => {
-    return await restorePersonalExpense(expense)
+  restoreExpense: async (expense: PersonalTransaction) => {
+    return await restorePersonalTransaction(expense)
   },
 }))

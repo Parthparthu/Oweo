@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { User as FirebaseUser, onAuthStateChanged } from 'firebase/auth'
-import { auth, isFirebaseConfigured } from '@/services/firebase/config'
+import { auth, isFirebaseConfigured, db } from '@/services/firebase/config'
 import {
   signInWithGoogle,
   signOutUser,
@@ -20,8 +20,7 @@ interface AuthState {
   initAuth: () => () => void
   loginWithGoogle: () => Promise<void>
   logout: () => Promise<void>
-  updateMonthlyBudget: (monthlyBudgetPaise: number) => Promise<void>
-  updateCategoryBudgets: (categoryBudgetsPaise: Record<string, number>) => Promise<void>
+  updateWalletBalance: (walletBalancePaise: number) => Promise<void>
   updatePreferences: (data: Partial<UserProfile>) => Promise<void>
   deleteAccount: () => Promise<void>
   setOnlineStatus: (isOnline: boolean) => void
@@ -47,36 +46,56 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return () => {}
     }
 
+    let profileUnsubscribe: () => void = () => {}
+
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         set({ user: currentUser })
+        
         try {
-          let profile = await getUserProfile(currentUser.uid)
-          if (!profile) {
-            profile = await syncUserProfile(currentUser)
+          // Initialize if missing
+          const existing = await getUserProfile(currentUser.uid)
+          if (!existing) {
+            await syncUserProfile(currentUser)
+          } else {
+            // Trigger seamless wallet migration if needed
+            const { migrateUserWallet } = await import('@/services/firebase/migrationService')
+            await migrateUserWallet(currentUser.uid)
           }
-          set({ profile, isLoading: false })
 
-          // Apply saved user theme & accent if available
-          if (profile) {
-            const { theme, accent, customHex } = useThemeStore.getState()
-            if (profile.themePreference && profile.themePreference !== theme) {
-              useThemeStore.getState().setTheme(profile.themePreference)
-            }
-            if (profile.accentColor && profile.accentColor !== accent) {
-              useThemeStore.getState().setAccent(profile.accentColor, profile.customAccentHex || customHex)
-            }
+          // Real-time subscription to the user's profile
+          if (db) {
+            const { doc, onSnapshot } = await import('firebase/firestore')
+            profileUnsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), (snap) => {
+              if (snap.exists()) {
+                const profile = snap.data() as UserProfile
+                set({ profile, isLoading: false })
+
+                // Apply saved user theme & accent if available
+                const { theme, accent, customHex } = useThemeStore.getState()
+                if (profile.themePreference && profile.themePreference !== theme) {
+                  useThemeStore.getState().setTheme(profile.themePreference)
+                }
+                if (profile.accentColor && profile.accentColor !== accent) {
+                  useThemeStore.getState().setAccent(profile.accentColor, profile.customAccentHex || customHex)
+                }
+              }
+            })
           }
         } catch (err) {
           console.warn('Profile load notice:', err)
           set({ isLoading: false })
         }
       } else {
+        profileUnsubscribe()
         set({ user: null, profile: null, isLoading: false })
       }
     })
 
-    return unsubscribe
+    return () => {
+      unsubscribe()
+      profileUnsubscribe()
+    }
   },
 
   loginWithGoogle: async () => {
@@ -102,17 +121,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  updateMonthlyBudget: async (monthlyBudgetPaise: number) => {
+  updateWalletBalance: async (walletBalancePaise: number) => {
     const { user, profile } = get()
     if (!user || !profile) return
-    const updated = await syncUserProfile(user, { monthlyBudgetPaise })
-    set({ profile: updated })
-  },
-
-  updateCategoryBudgets: async (categoryBudgetsPaise: Record<string, number>) => {
-    const { user, profile } = get()
-    if (!user || !profile) return
-    const updated = await syncUserProfile(user, { categoryBudgetsPaise })
+    const updated = await syncUserProfile(user, { walletBalancePaise })
     set({ profile: updated })
   },
 

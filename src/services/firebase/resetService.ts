@@ -24,10 +24,10 @@ export async function resetCurrentUserData(userId: string): Promise<void> {
   const inviteDocs = await getDocs(inviteQ)
   inviteDocs.forEach((d) => batch.delete(d.ref))
 
-  // 4. Reset budget in user profile
+  // 4. Reset wallet balance in user profile
   const userRef = doc(db, 'users', userId)
   batch.update(userRef, {
-    monthlyBudgetPaise: 0,
+    walletBalancePaise: 0,
     updatedAt: Date.now(),
   })
 

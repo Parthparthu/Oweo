@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+﻿import React, { useState } from 'react'
 import { Dialog } from '@/components/ui/Dialog'
 import { AmountInput } from '@/components/ui/AmountInput'
 import { Button } from '@/components/ui/Button'
@@ -8,7 +8,7 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { useToast } from '@/components/ui/Toast'
 import { ALL_CATEGORIES } from '@/domain/expenses/categories'
 import { parseAmountInput } from '@/domain/money/money'
-import { ExpenseCategory, PaymentMethod } from '@/types/expense'
+import { TransactionCategory, PaymentMethod } from '@/types/expense'
 import { RecurringFrequency } from '@/types/recurring'
 
 const PAYMENT_METHODS: PaymentMethod[] = ['UPI', 'Card', 'Cash', 'Net Banking']
@@ -20,7 +20,7 @@ export const AddRecurringModal: React.FC = () => {
 
   const [title, setTitle] = useState('')
   const [amountStr, setAmountStr] = useState('')
-  const [category, setCategory] = useState<ExpenseCategory>('Subscriptions')
+  const [category, setCategory] = useState<TransactionCategory>('Subscriptions')
   const [frequency, setFrequency] = useState<RecurringFrequency>('monthly')
   const [billingDay, setBillingDay] = useState(1)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('UPI')
@@ -130,7 +130,7 @@ export const AddRecurringModal: React.FC = () => {
             </label>
             <select
               value={category}
-              onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
+              onChange={(e) => setCategory(e.target.value as TransactionCategory)}
               className="flex h-11 w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               {ALL_CATEGORIES.map((c) => (

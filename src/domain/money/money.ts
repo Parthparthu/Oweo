@@ -106,3 +106,26 @@ export function paiseToInputString(paise: number): string {
   const rupees = normalized / 100
   return Number.isInteger(rupees) ? rupees.toString() : rupees.toFixed(2)
 }
+
+/**
+ * Derives current wallet balance in integer paise from a list of transactions:
+ * sum(INCOME) - sum(EXPENSE)
+ * Strictly preserves integer paise arithmetic.
+ */
+export function deriveWalletBalance(
+  transactions: Array<{ amountPaise?: number; type?: 'INCOME' | 'EXPENSE' }>
+): number {
+  const total = transactions.reduce((acc, t) => {
+    const amount =
+      isFinite(t.amountPaise as number) && !isNaN(t.amountPaise as number)
+        ? Math.round(t.amountPaise as number)
+        : 0
+    if (t.type === 'INCOME') {
+      return acc + amount
+    } else {
+      return acc - amount
+    }
+  }, 0)
+  return Object.is(total, -0) ? 0 : total
+}
+

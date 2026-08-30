@@ -1,11 +1,11 @@
-import { ExpenseCategory } from '@/types/expense'
+﻿import { TransactionCategory } from '@/types/expense'
 import { parseAmountInput } from '../money/money'
 
 export interface ParsedSplitwiseExpense {
   id: string
   date: string // YYYY-MM-DD
   title: string
-  category: ExpenseCategory
+  category: TransactionCategory
   totalAmountPaise: number
   userSharePaise: number
   groupName?: string
@@ -25,7 +25,7 @@ export interface SplitwiseImportPreview {
   errors: string[]
 }
 
-const CATEGORY_MAP: Record<string, ExpenseCategory> = {
+const CATEGORY_MAP: Record<string, TransactionCategory> = {
   'dining out': 'Food',
   food: 'Food',
   groceries: 'Groceries',
@@ -141,9 +141,9 @@ function normalizeDate(raw: string): string {
 }
 
 /**
- * Maps raw Splitwise category string to Oweo ExpenseCategory.
+ * Maps raw Splitwise category string to Oweo TransactionCategory.
  */
-function mapCategory(rawCat: string): ExpenseCategory {
+function mapCategory(rawCat: string): TransactionCategory {
   if (!rawCat) return 'Other'
   const lower = rawCat.toLowerCase().trim()
   return CATEGORY_MAP[lower] || 'Other'

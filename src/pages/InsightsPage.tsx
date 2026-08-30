@@ -3,12 +3,10 @@
  */
 import React, { useMemo } from 'react'
 import { useCombinedExpenses } from '@/hooks/useCombinedExpenses'
-import { useAuthStore } from '@/stores/useAuthStore'
 import { CategoryDonutChart } from '@/features/insights/CategoryDonutChart'
 import { SpendingBarChart } from '@/features/insights/SpendingBarChart'
 import { MonthOverMonthCard } from '@/features/insights/MonthOverMonthCard'
 import { SmartInsightsList } from '@/features/insights/SmartInsightsList'
-import { CategoryBudgetsCard } from '@/features/insights/CategoryBudgetsCard'
 import {
   aggregateByCategory,
   calculateMonthlyMetrics,
@@ -19,17 +17,11 @@ import { PieChart } from 'lucide-react'
 
 export const InsightsPage: React.FC = () => {
   const expenses = useCombinedExpenses()
-  const profile = useAuthStore((state) => state.profile)
 
   const categoryData = useMemo(() => aggregateByCategory(expenses), [expenses])
   const metrics = useMemo(
-    () =>
-      calculateMonthlyMetrics(
-        expenses,
-        profile?.monthlyBudgetPaise || 0,
-        profile?.categoryBudgetsPaise || {}
-      ),
-    [expenses, profile]
+    () => calculateMonthlyMetrics(expenses),
+    [expenses]
   )
   const insights = useMemo(
     () => generateSmartInsights(expenses, metrics),
@@ -70,11 +62,6 @@ export const InsightsPage: React.FC = () => {
 
       {/* Smart Insights & Observations */}
       <SmartInsightsList insights={insights} />
-
-      {/* Category Budgets Progress & Limits */}
-      {metrics.categoryBudgetMetrics.length > 0 && (
-        <CategoryBudgetsCard categoryBudgets={metrics.categoryBudgetMetrics} />
-      )}
 
       {/* Month-over-Month & Velocity Forecasting */}
       <MonthOverMonthCard metrics={metrics} />

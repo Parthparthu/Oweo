@@ -37,7 +37,7 @@ export const ExportSection: React.FC = () => {
         userName: profile?.displayName || user?.displayName || 'User',
         userEmail: user?.email,
         expenses,
-        monthlyBudgetPaise: profile?.monthlyBudgetPaise || 0,
+        
       })
       showToast('Financial Statement PDF generated!', 'success')
     } catch (err: any) {

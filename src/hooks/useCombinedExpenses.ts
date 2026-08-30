@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { PersonalExpense } from '@/types/expense'
+import { PersonalTransaction } from '@/types/expense'
 import { useExpenseStore } from '@/stores/useExpenseStore'
 import { useGroupStore } from '@/stores/useGroupStore'
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -7,25 +7,25 @@ import { useAuthStore } from '@/stores/useAuthStore'
 /**
  * Hook that returns the user's out-of-pocket financial transactions:
  * 1. Direct Personal Expenses: All private expenses.
- * 2. Group Upfront Expenses: If user was the payer, full upfront amount (+₹100).
- * 3. Group Settlements Paid by User: When user settles their debt (+₹50).
- * 4. Group Settlements Received by User: When user receives reimbursement (-₹50),
- *    which offsets the upfront payment from ₹100 down to ₹50!
+ * 2. Group Upfront Expenses: If user was the payer, full upfront amount (+â‚¹100).
+ * 3. Group Settlements Paid by User: When user settles their debt (+â‚¹50).
+ * 4. Group Settlements Received by User: When user receives reimbursement (-â‚¹50),
+ *    which offsets the upfront payment from â‚¹100 down to â‚¹50!
  */
-export function useCombinedExpenses(): PersonalExpense[] {
-  const personalExpenses = useExpenseStore((state) => state.expenses)
+export function useCombinedExpenses(): PersonalTransaction[] {
+  const PersonalTransactions = useExpenseStore((state) => state.expenses)
   const allGroupExpenses = useGroupStore((state) => state.allGroupExpenses)
   const allGroupSettlements = useGroupStore((state) => state.allGroupSettlements)
   const groups = useGroupStore((state) => state.groups)
   const user = useAuthStore((state) => state.user)
 
   return useMemo(() => {
-    if (!user) return personalExpenses
+    if (!user) return PersonalTransactions
 
     const groupMap = new Map<string, string>()
     groups.forEach((g) => groupMap.set(g.id, g.name))
 
-    const computedItems: PersonalExpense[] = []
+    const computedItems: PersonalTransaction[] = []
 
     // 1. Group Expenses where current user was the UPFRONT PAYER (e.g. +₹100)
     allGroupExpenses.forEach((gExp) => {
@@ -34,6 +34,7 @@ export function useCombinedExpenses(): PersonalExpense[] {
         computedItems.push({
           id: `gexp_${gExp.id}`,
           userId: user.uid,
+          type: 'EXPENSE',
           amountPaise: gExp.amountPaise,
           category: gExp.category || 'Food',
           title: gExp.title,
@@ -61,6 +62,7 @@ export function useCombinedExpenses(): PersonalExpense[] {
         computedItems.push({
           id: `stl_pay_${stl.id}`,
           userId: user.uid,
+          type: 'EXPENSE',
           amountPaise: stl.amountPaise,
           category: 'Settlement',
           title: `Settled with ${stl.receiverSnapshot?.displayName || 'Member'}`,
@@ -80,7 +82,8 @@ export function useCombinedExpenses(): PersonalExpense[] {
         computedItems.push({
           id: `stl_rec_${stl.id}`,
           userId: user.uid,
-          amountPaise: -stl.amountPaise, // Negative amount reduces total spending
+          type: 'INCOME',
+          amountPaise: stl.amountPaise, // Positive amount for INCOME
           category: 'Settlement',
           title: `Reimbursement from ${stl.payerSnapshot?.displayName || 'Member'}`,
           date: stl.date,
@@ -96,11 +99,11 @@ export function useCombinedExpenses(): PersonalExpense[] {
     })
 
     // Combine with personal expenses and sort by date descending, then createdAt descending
-    const combined = [...personalExpenses, ...computedItems]
+    const combined = [...PersonalTransactions, ...computedItems]
     return combined.sort((a, b) => {
       const dateCompare = (b.date || '').localeCompare(a.date || '')
       if (dateCompare !== 0) return dateCompare
       return (b.createdAt || 0) - (a.createdAt || 0)
     })
-  }, [personalExpenses, allGroupExpenses, allGroupSettlements, groups, user])
+  }, [PersonalTransactions, allGroupExpenses, allGroupSettlements, groups, user])
 }

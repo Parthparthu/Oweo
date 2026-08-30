@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { PersonalExpense } from '@/types/expense'
+import { PersonalTransaction } from '@/types/expense'
 import { formatINR } from '@/domain/money/money'
 import { aggregateByCategory, calculateMonthlyMetrics } from '@/domain/analytics/analyticsEngine'
 import { format } from 'date-fns'
@@ -8,8 +8,7 @@ import { format } from 'date-fns'
 interface PDFReportOptions {
   userName: string
   userEmail?: string | null
-  expenses: PersonalExpense[]
-  monthlyBudgetPaise?: number
+  expenses: PersonalTransaction[]
   dateRangeLabel?: string
 }
 
@@ -17,7 +16,7 @@ interface PDFReportOptions {
  * Generates a clean, professional financial statement PDF using jsPDF and autoTable.
  */
 export function generateSpendingPDFReport(options: PDFReportOptions) {
-  const { userName, userEmail, expenses, monthlyBudgetPaise = 0, dateRangeLabel } = options
+  const { userName, userEmail, expenses, dateRangeLabel } = options
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
   const pageWidth = doc.internal.pageSize.getWidth()
@@ -39,7 +38,7 @@ export function generateSpendingPDFReport(options: PDFReportOptions) {
 
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
-  doc.text('Personal Financial & Spending Statement', 14, 23)
+  doc.text('Personal Financial & Cash Flow Statement', 14, 23)
 
   doc.setFontSize(9)
   doc.text(`Generated: ${nowStr}`, pageWidth - 14, 16, { align: 'right' })
@@ -58,10 +57,10 @@ export function generateSpendingPDFReport(options: PDFReportOptions) {
   }
 
   // Summary Metrics Calculation
-  const metrics = calculateMonthlyMetrics(expenses, monthlyBudgetPaise)
-  const totalSpentFormatted = formatINR(metrics.currentMonthTotalPaise)
-  const budgetFormatted = monthlyBudgetPaise > 0 ? formatINR(monthlyBudgetPaise) : 'Not set'
-  const dailyAvgFormatted = formatINR(metrics.dailyAveragePaise)
+  const metrics = calculateMonthlyMetrics(expenses)
+  const totalSpentFormatted = formatINR(metrics.currentMonthTotalExpensePaise)
+  const totalIncomeFormatted = formatINR(metrics.currentMonthTotalIncomePaise)
+  const netCashFlowFormatted = formatINR(metrics.netCashFlowPaise)
 
   // Summary Cards Box
   doc.setDrawColor(220, 225, 230)
@@ -72,19 +71,21 @@ export function generateSpendingPDFReport(options: PDFReportOptions) {
   doc.setFontSize(8)
   doc.setTextColor(100, 100, 100)
   doc.text('TOTAL SPENT', 20, 56)
-  doc.text('MONTHLY BUDGET', 75, 56)
-  doc.text('DAILY AVERAGE', 135, 56)
+  doc.text('TOTAL INCOME', 75, 56)
+  doc.text('NET CASH FLOW', 135, 56)
 
   doc.setFontSize(11)
   doc.setFont('helvetica', 'bold')
-  doc.setTextColor(13, 148, 136)
+  doc.setTextColor(225, 29, 72) // Rose
   doc.text(totalSpentFormatted, 20, 64)
 
-  doc.setTextColor(50, 50, 50)
-  doc.text(budgetFormatted, 75, 64)
-  doc.text(`${dailyAvgFormatted}/day`, 135, 64)
+  doc.setTextColor(16, 185, 129) // Emerald
+  doc.text(totalIncomeFormatted, 75, 64)
 
-  // Category Breakdown Table
+  doc.setTextColor(metrics.netCashFlowPaise >= 0 ? 16 : 225, metrics.netCashFlowPaise >= 0 ? 185 : 29, metrics.netCashFlowPaise >= 0 ? 129 : 72)
+  doc.text(netCashFlowFormatted, 135, 64)
+
+  // Category Breakdown Table (Expenses only)
   const categoryData = aggregateByCategory(expenses)
   const categoryRows = categoryData.map((c) => [
     c.label,
@@ -98,12 +99,12 @@ export function generateSpendingPDFReport(options: PDFReportOptions) {
   doc.setFontSize(12)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(20, 20, 20)
-  doc.text('Category Summary', 14, startY)
+  doc.text('Expense Category Summary', 14, startY)
 
   autoTable(doc, {
     startY: startY + 3,
     head: [['Category', 'Transactions', 'Share (%)', 'Amount (INR)']],
-    body: categoryRows.length > 0 ? categoryRows : [['No data', '0', '0%', 'Rs 0']],
+    body: categoryRows.length > 0 ? categoryRows : [['No expenses', '0', '0%', 'Rs 0']],
     theme: 'striped',
     headStyles: {
       fillColor: primaryColor,
@@ -133,14 +134,14 @@ export function generateSpendingPDFReport(options: PDFReportOptions) {
     e.date,
     e.title || e.category,
     e.category,
-    e.paymentMethod || 'UPI',
-    formatINR(e.amountPaise),
+    e.type || 'EXPENSE',
+    e.type === 'INCOME' ? `+ ${formatINR(e.amountPaise)}` : formatINR(e.amountPaise),
   ])
 
   autoTable(doc, {
     startY: finalY + 3,
-    head: [['Date', 'Description', 'Category', 'Method', 'Amount']],
-    body: transactionRows.length > 0 ? transactionRows : [['-', 'No expenses found', '-', '-', 'Rs 0']],
+    head: [['Date', 'Description', 'Category', 'Type', 'Amount']],
+    body: transactionRows.length > 0 ? transactionRows : [['-', 'No transactions found', '-', '-', 'Rs 0']],
     theme: 'striped',
     headStyles: {
       fillColor: [51, 65, 85],
@@ -166,7 +167,7 @@ export function generateSpendingPDFReport(options: PDFReportOptions) {
     doc.setFontSize(8)
     doc.setTextColor(150, 150, 150)
     doc.text(
-      `Oweo Financial Report • Page ${i} of ${totalPages}`,
+      `Oweo Financial Report â€¢ Page ${i} of ${totalPages}`,
       pageWidth / 2,
       doc.internal.pageSize.getHeight() - 8,
       { align: 'center' }

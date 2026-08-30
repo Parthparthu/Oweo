@@ -1,9 +1,9 @@
-import { ExpenseCategory } from '@/types/expense'
+import { TransactionCategory } from '@/types/expense'
 import { CATEGORY_DEFINITIONS } from './categories'
 
 export interface ParsedExpenseIntent {
   amountPaise: number | null
-  category: ExpenseCategory
+  category: TransactionCategory
   title: string
   confidence: number // 0 to 1
   rawInput: string
@@ -44,10 +44,10 @@ export function parseQuickExpenseInput(input: string): ParsedExpenseIntent {
 
   // Clean remaining text for keyword matching
   const lowerText = textWithoutAmount.toLowerCase()
-  let bestCategory: ExpenseCategory = 'Other'
+  let bestCategory: TransactionCategory = 'Other'
   let bestScore = 0
 
-  const categories = Object.keys(CATEGORY_DEFINITIONS) as ExpenseCategory[]
+  const categories = Object.keys(CATEGORY_DEFINITIONS) as TransactionCategory[]
 
   for (const cat of categories) {
     const meta = CATEGORY_DEFINITIONS[cat]

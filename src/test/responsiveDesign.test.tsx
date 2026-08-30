@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { formatINR, parseAmountInput } from '@/domain/money/money'
 import { calculateEqualSplit, calculatePercentageSplit } from '@/domain/splits/splitCalculator'
 import { ExpenseListItem } from '@/features/expenses/ExpenseListItem'
-import { PersonalExpense } from '@/types/expense'
+import { PersonalTransaction } from '@/types/expense'
 import { ACCENT_PRESETS, applyAccentToDocument } from '@/styles/themeTokens'
 
 describe('Responsive Design & Large Numbers Audit', () => {
@@ -81,11 +81,11 @@ describe('Responsive Design & Large Numbers Audit', () => {
 
   describe('Content Stress Testing with Long Strings in UI Components', () => {
     it('renders ExpenseListItem with extreme long title, category, and monetary amount without error', () => {
-      const extremeExpense: PersonalExpense = {
+      const extremeExpense: PersonalTransaction = {
         id: 'exp_extreme_1',
         userId: 'usr_1',
         amountPaise: 999999999,
-        category: 'Shopping',
+        category: 'Shopping', type: 'EXPENSE',
         title: 'Dinner with roommates after the engineering project meeting and farewell celebration',
         date: '2026-08-23',
         paymentMethod: 'UPI',

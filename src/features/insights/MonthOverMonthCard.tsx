@@ -29,19 +29,19 @@ export const MonthOverMonthCard: React.FC<Props> = ({ metrics }) => {
         <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/60">
           <span className="text-xs text-muted-foreground font-semibold">This Month</span>
           <p className="text-xl font-black text-foreground mt-0.5">
-            {formatINR(metrics.currentMonthTotalPaise)}
+            {formatINR(metrics.currentMonthTotalExpensePaise)}
           </p>
         </div>
 
         <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/60">
           <span className="text-xs text-muted-foreground font-semibold">Last Month</span>
           <p className="text-xl font-black text-foreground mt-0.5">
-            {formatINR(metrics.previousMonthTotalPaise)}
+            {formatINR(metrics.previousMonthTotalExpensePaise)}
           </p>
         </div>
       </div>
 
-      {metrics.previousMonthTotalPaise > 0 && (
+      {metrics.previousMonthTotalExpensePaise > 0 && (
         <div
           className={clsx(
             'flex items-center gap-2 p-3 rounded-xl text-xs font-semibold border',

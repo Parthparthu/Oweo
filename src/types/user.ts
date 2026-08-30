@@ -3,8 +3,8 @@ export interface UserProfile {
   email: string | null
   displayName: string
   photoURL: string | null
-  monthlyBudgetPaise: number // 0 means not set
-  categoryBudgetsPaise?: Record<string, number>
+  walletBalancePaise: number // Master balance
+  isWalletMigrated?: boolean
   currency: string // default 'INR'
   locale: string // default 'en-IN'
   themePreference: 'light' | 'dark' | 'system'
@@ -19,5 +19,5 @@ export interface UserPreferences {
   accent: string
   customHex?: string
   currency: string
-  monthlyBudgetPaise: number
+  walletBalancePaise: number
 }

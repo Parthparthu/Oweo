@@ -1,4 +1,4 @@
-import { PersonalExpense } from '@/types/expense'
+﻿import { PersonalTransaction } from '@/types/expense'
 import { RecurringExpense, DetectedRecurringPattern, RecurringFrequency } from '@/types/recurring'
 
 /**
@@ -6,7 +6,7 @@ import { RecurringExpense, DetectedRecurringPattern, RecurringFrequency } from '
  * from historical personal expenses.
  */
 export function detectRecurringExpenses(
-  expenses: PersonalExpense[],
+  expenses: PersonalTransaction[],
   existingRecurring: RecurringExpense[] = []
 ): DetectedRecurringPattern[] {
   if (expenses.length < 2) return []
@@ -21,7 +21,7 @@ export function detectRecurringExpenses(
     string,
     {
       title: string
-      category: PersonalExpense['category']
+      category: PersonalTransaction['category']
       amountPaise: number
       dates: Date[]
       expenseIds: string[]

@@ -1,4 +1,4 @@
-import { ExpenseCategory, PaymentMethod } from './expense'
+﻿import { TransactionCategory, PaymentMethod } from './expense'
 
 export type RecurringFrequency = 'monthly' | 'yearly' | 'weekly'
 
@@ -7,7 +7,7 @@ export interface RecurringExpense {
   userId: string
   title: string
   amountPaise: number
-  category: ExpenseCategory
+  category: TransactionCategory
   frequency: RecurringFrequency
   billingDay: number // 1 to 31
   nextDueDate: string // YYYY-MM-DD
@@ -20,7 +20,7 @@ export interface RecurringExpense {
 
 export interface DetectedRecurringPattern {
   title: string
-  category: ExpenseCategory
+  category: TransactionCategory
   amountPaise: number
   frequency: RecurringFrequency
   suggestedBillingDay: number

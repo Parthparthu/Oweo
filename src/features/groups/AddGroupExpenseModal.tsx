@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import { Dialog } from '@/components/ui/Dialog'
 import { AmountInput } from '@/components/ui/AmountInput'
 import { Button } from '@/components/ui/Button'
@@ -22,7 +22,7 @@ import {
 import { CurrencyCode, SUPPORTED_CURRENCIES, ALL_CURRENCY_CODES } from '@/types/currency'
 import { ReceiptScannerModal } from '@/features/expenses/ReceiptScannerModal'
 import { toISODateString } from '@/utils/dateUtils'
-import { ExpenseCategory, SplitType, ParticipantShare } from '@/types/expense'
+import { TransactionCategory, SplitType, ParticipantShare } from '@/types/expense'
 import { Check, Receipt, Globe, Sliders } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -42,7 +42,7 @@ export const AddGroupExpenseModal: React.FC = () => {
   const [exchangeRate, setExchangeRate] = useState<number>(1)
   const [showExchangeRateEdit, setShowExchangeRateEdit] = useState(false)
   const [title, setTitle] = useState('')
-  const [category, setCategory] = useState<ExpenseCategory>('Food')
+  const [category, setCategory] = useState<TransactionCategory>('Food')
   const [payerId, setPayerId] = useState<string>('')
   const [splitType, setSplitType] = useState<SplitType>('equal')
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([])
@@ -290,7 +290,7 @@ export const AddGroupExpenseModal: React.FC = () => {
                     {formatINR(effectiveTotalPaise)}
                   </strong>{' '}
                   <span className="text-[11px] text-muted-foreground">
-                    (@ ₹{exchangeRate.toFixed(2)}/{currency})
+                    (@ â‚¹{exchangeRate.toFixed(2)}/{currency})
                   </span>
                 </div>
                 <button
@@ -307,7 +307,7 @@ export const AddGroupExpenseModal: React.FC = () => {
             {showExchangeRateEdit && currency !== 'INR' && (
               <div className="p-2.5 rounded-xl bg-card border border-border/70 text-xs space-y-1.5 animate-fade-in">
                 <label className="block text-[11px] font-bold text-foreground">
-                  Exchange Rate (1 {currency} = ₹ INR)
+                  Exchange Rate (1 {currency} = â‚¹ INR)
                 </label>
                 <input
                   type="number"
@@ -333,7 +333,7 @@ export const AddGroupExpenseModal: React.FC = () => {
               </label>
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
+                onChange={(e) => setCategory(e.target.value as TransactionCategory)}
                 className="flex h-11 w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 {ALL_CATEGORIES.map((c) => (

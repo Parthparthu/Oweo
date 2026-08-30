@@ -1,15 +1,15 @@
 /**
- * ExpenseListItem.tsx  (Phase 6 — Interactive List Item)
+ * ExpenseListItem.tsx  (Phase 6 â€” Interactive List Item)
  *
  * Changes vs original:
- *  ✅ All navigation, category icons, formatINR, onClick 100% preserved
+ *  âœ… All navigation, category icons, formatINR, onClick 100% preserved
  *  + motion.div with whileHover lift + border color transition
  *  + Category icon container spring scale on hover
  *  + whileTap scale press feedback
  */
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { PersonalExpense } from '@/types/expense'
+import { PersonalTransaction } from '@/types/expense'
 import { CATEGORY_DEFINITIONS } from '@/domain/expenses/categories'
 import { formatINR } from '@/domain/money/money'
 import { formatFriendlyDate } from '@/utils/dateUtils'
@@ -51,14 +51,14 @@ const ICONS: Record<string, React.ReactNode> = {
 }
 
 interface Props {
-  expense: PersonalExpense
-  onClick?: (expense: PersonalExpense) => void
+  expense: PersonalTransaction
+  onClick?: (expense: PersonalTransaction) => void
 }
 
 export const ExpenseListItem: React.FC<Props> = ({ expense, onClick }) => {
   const navigate = useNavigate()
   const meta = CATEGORY_DEFINITIONS[expense.category] || CATEGORY_DEFINITIONS.Other
-  const isCredit = expense.amountPaise < 0
+  const isIncome = expense.type === 'INCOME' || expense.amountPaise < 0
 
   const handleClick = () => {
     if (expense.isGroupExpense && expense.groupId) {
@@ -85,8 +85,8 @@ export const ExpenseListItem: React.FC<Props> = ({ expense, onClick }) => {
         <motion.div
           className="w-10 h-10 xs:w-11 xs:h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"
           style={{
-            backgroundColor: isCredit ? '#10b98115' : `${meta.color}15`,
-            color: isCredit ? '#10b981' : meta.color,
+            backgroundColor: isIncome ? '#10b98115' : `${meta.color}15`,
+            color: isIncome ? '#10b981' : meta.color,
           }}
           whileHover={{ scale: 1.12, rotate: -6 }}
           transition={{ type: 'spring', stiffness: 400, damping: 20 }}
@@ -106,7 +106,7 @@ export const ExpenseListItem: React.FC<Props> = ({ expense, onClick }) => {
             )}
           </div>
           <div className="flex items-center gap-1.5 xs:gap-2 text-[11px] xs:text-xs text-muted-foreground mt-0.5 truncate">
-            <span>{isCredit ? 'Reimbursement' : expense.category}</span>
+            <span>{isIncome ? (expense.category === 'Settlement' ? 'Reimbursement' : expense.category) : expense.category}</span>
             <span>•</span>
             <span>{formatFriendlyDate(expense.date)}</span>
             {expense.paymentMethod && !expense.isGroupExpense && (
@@ -123,11 +123,11 @@ export const ExpenseListItem: React.FC<Props> = ({ expense, onClick }) => {
         <span
           className={clsx(
             'text-xs xs:text-sm sm:text-base font-black tabular-nums',
-            isCredit ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'
+            isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'
           )}
         >
-          {isCredit
-            ? `- ${formatINR(Math.abs(expense.amountPaise))}`
+          {isIncome
+            ? `+ ${formatINR(Math.abs(expense.amountPaise))}`
             : formatINR(expense.amountPaise)}
         </span>
         {expense.note && (
