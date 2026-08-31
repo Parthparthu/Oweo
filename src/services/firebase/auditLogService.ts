@@ -10,7 +10,7 @@ import {
   DocumentSnapshot,
   Unsubscribe,
 } from 'firebase/firestore'
-import { db } from './config'
+import { db, auth } from './config'
 import { GroupAuditLog } from '@/types/auditLog'
 import { generateId } from '@/utils/idGenerator'
 import { sanitizeForFirestore } from '@/utils/firestoreUtils'
@@ -26,10 +26,12 @@ export async function recordAuditLog(
   try {
     const id = generateId('audit')
     const timestamp = Date.now()
+    const actorId = auth?.currentUser?.uid || logData.actorId
 
     const log: GroupAuditLog = {
       ...logData,
       id,
+      actorId,
       timestamp,
     }
 

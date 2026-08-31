@@ -18,9 +18,9 @@ import {
   writeBatch,
   increment,
 } from 'firebase/firestore'
-import { db } from './config'
+import { db, auth } from './config'
 import { Group, GroupMember, GroupInvite } from '@/types/group'
-import { GroupExpense, PersonalTransaction } from '@/types/expense'
+import { GroupExpense } from '@/types/expense'
 import { Settlement } from '@/types/settlement'
 import { generateId, generateInviteCode } from '@/utils/idGenerator'
 import { sanitizeForFirestore } from '@/utils/firestoreUtils'
@@ -308,15 +308,24 @@ export async function addGroupExpense(
   })
 
   // Append to audit log
+  const currentUid = auth?.currentUser?.uid || expenseData.payerId
+  const isActorPayer = currentUid === expenseData.payerId
+  const actorDisplayName = isActorPayer
+    ? expenseData.payerSnapshot?.displayName || 'Member'
+    : auth?.currentUser?.displayName || 'Member'
+  const actorPhotoURL = isActorPayer
+    ? expenseData.payerSnapshot?.photoURL || null
+    : auth?.currentUser?.photoURL || null
+
   await recordAuditLog({
     groupId,
     entityType: 'expense',
     entityId: id,
     action: 'create',
-    actorId: expenseData.payerId,
+    actorId: currentUid,
     actorSnapshot: {
-      displayName: expenseData.payerSnapshot?.displayName || 'Member',
-      photoURL: expenseData.payerSnapshot?.photoURL || null,
+      displayName: actorDisplayName,
+      photoURL: actorPhotoURL,
     },
     summary: `Added expense "${expenseData.title}" of ₹${(expenseData.amountPaise / 100).toFixed(2)}`,
     afterState: expense,
@@ -435,68 +444,43 @@ export async function recordGroupSettlement(
   const groupRef = doc(db, 'groups', groupId)
   batch.update(groupRef, { updatedAt: now })
 
-  const dateStr = new Date().toISOString().split('T')[0]
-
-  // 3. Create EXPENSE for Payer
-  const payerExpenseId = generateId('exp')
-  const payerExpense: PersonalTransaction = {
-    id: payerExpenseId,
-    userId: settlement.payerId,
-    type: 'EXPENSE',
-    amountPaise: settlement.amountPaise,
-    category: 'Settlement',
-    title: `Settled up with ${settlement.receiverSnapshot.displayName}`,
-    date: dateStr,
-    linkedSettlementId: id,
-    isGroupExpense: false,
-    paymentMethod: 'Other',
-    createdAt: now,
-    updatedAt: now,
+  // 3. If current authenticated user is the payer or receiver, update their own wallet balance
+  const currentUid = auth?.currentUser?.uid
+  if (currentUid) {
+    if (currentUid === settlement.payerId) {
+      const payerUserRef = doc(db, 'users', currentUid)
+      batch.update(payerUserRef, { walletBalancePaise: increment(-settlement.amountPaise) })
+    } else if (currentUid === settlement.receiverId) {
+      const receiverUserRef = doc(db, 'users', currentUid)
+      batch.update(receiverUserRef, { walletBalancePaise: increment(settlement.amountPaise) })
+    }
   }
-  batch.set(doc(db, 'expenses', payerExpenseId), sanitizeForFirestore(payerExpense))
-
-  // 4. Deduct from Payer's wallet
-  const payerUserRef = doc(db, 'users', settlement.payerId)
-  batch.update(payerUserRef, { walletBalancePaise: increment(-settlement.amountPaise) })
-
-  // 5. Create INCOME for Receiver
-  const receiverIncomeId = generateId('exp')
-  const receiverIncome: PersonalTransaction = {
-    id: receiverIncomeId,
-    userId: settlement.receiverId,
-    type: 'INCOME',
-    amountPaise: settlement.amountPaise,
-    category: 'Settlement',
-    title: `Settled up by ${settlement.payerSnapshot.displayName}`,
-    date: dateStr,
-    linkedSettlementId: id,
-    isGroupExpense: false,
-    paymentMethod: 'Other',
-    createdAt: now,
-    updatedAt: now,
-  }
-  batch.set(doc(db, 'expenses', receiverIncomeId), sanitizeForFirestore(receiverIncome))
-
-  // 6. Add to Receiver's wallet
-  const receiverUserRef = doc(db, 'users', settlement.receiverId)
-  batch.update(receiverUserRef, { walletBalancePaise: increment(settlement.amountPaise) })
 
   await batch.commit()
 
-  // Append to audit log
+  // 4. Append to audit log with correct actor identity
+  const actorId = currentUid || settlementData.payerId
+  const isActorPayer = actorId === settlementData.payerId
+  const actorDisplayName = isActorPayer
+    ? settlementData.payerSnapshot?.displayName || 'Member'
+    : auth?.currentUser?.displayName || 'Member'
+  const actorPhotoURL = isActorPayer
+    ? settlementData.payerSnapshot?.photoURL || null
+    : auth?.currentUser?.photoURL || null
+
   await recordAuditLog({
     groupId,
     entityType: 'settlement',
     entityId: id,
     action: 'settle',
-    actorId: settlementData.payerId,
+    actorId,
     actorSnapshot: {
-      displayName: settlementData.payerSnapshot?.displayName || 'Member',
-      photoURL: settlementData.payerSnapshot?.photoURL || null,
+      displayName: actorDisplayName,
+      photoURL: actorPhotoURL,
     },
-    summary: `Recorded settlement of ₹${(settlementData.amountPaise / 100).toFixed(2)} to ${
-      settlementData.receiverSnapshot?.displayName || 'Member'
-    }`,
+    summary: `Recorded settlement of ₹${(settlementData.amountPaise / 100).toFixed(2)}: ${
+      settlementData.payerSnapshot?.displayName || 'Payer'
+    } paid ${settlementData.receiverSnapshot?.displayName || 'Receiver'}`,
     afterState: settlement,
   })
 
