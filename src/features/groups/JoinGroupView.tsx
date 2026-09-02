@@ -1,11 +1,12 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useToast } from '@/components/ui/Toast'
-import { redeemGroupInvite } from '@/services/firebase/groupService'
-import { Users, CheckCircle2, AlertCircle } from 'lucide-react'
+import { redeemGroupInvite, fetchGroupInvite } from '@/services/firebase/groupService'
+import { GroupInvite } from '@/types/group'
+import { Users, CheckCircle2, AlertCircle, Clock, ShieldAlert } from 'lucide-react'
 
 export const JoinGroupView: React.FC = () => {
   const { inviteCode } = useParams<{ inviteCode: string }>()
@@ -14,9 +15,44 @@ export const JoinGroupView: React.FC = () => {
   const profile = useAuthStore((state) => state.profile)
   const { showToast } = useToast()
 
+  const [isLoadingPreview, setIsLoadingPreview] = useState(true)
+  const [inviteData, setInviteData] = useState<GroupInvite | null>(null)
+  const [isExpired, setIsExpired] = useState(false)
+  const [isRevoked, setIsRevoked] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [successGroup, setSuccessGroup] = useState<{ id: string; name: string } | null>(null)
+
+  useEffect(() => {
+    if (!inviteCode) {
+      setIsLoadingPreview(false)
+      setError('No invite code provided')
+      return
+    }
+
+    let isMounted = true
+    setIsLoadingPreview(true)
+    setError('')
+
+    fetchGroupInvite(inviteCode)
+      .then((res) => {
+        if (!isMounted) return
+        setInviteData(res.invite)
+        setIsExpired(res.isExpired)
+        setIsRevoked(res.isRevoked)
+      })
+      .catch((err: any) => {
+        if (!isMounted) return
+        setError(err?.message || 'Invalid or expired invite link')
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingPreview(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [inviteCode])
 
   const handleJoin = async () => {
     if (!inviteCode || !user) return
@@ -44,6 +80,8 @@ export const JoinGroupView: React.FC = () => {
     }
   }
 
+  const isActionDisabled = Boolean(successGroup) || isExpired || isRevoked || isLoadingPreview || !inviteData
+
   return (
     <div className="min-h-[70dvh] flex items-center justify-center p-3 xs:p-4">
       <Card className="max-w-md w-full p-4 xs:p-6 text-center space-y-4 xs:space-y-5 border-border shadow-xl">
@@ -52,13 +90,29 @@ export const JoinGroupView: React.FC = () => {
         </div>
 
         <div>
-          <h2 className="text-xl font-bold text-foreground">Join Split Group</h2>
+          <h2 className="text-xl font-bold text-foreground">
+            {inviteData ? `Join ${inviteData.groupName}` : 'Join Split Group'}
+          </h2>
           <p className="text-xs text-muted-foreground mt-1">
             Invite Code: <strong className="font-mono text-primary">{inviteCode}</strong>
           </p>
         </div>
 
-        {error ? (
+        {isLoadingPreview ? (
+          <div className="p-4 rounded-xl bg-muted/40 animate-pulse text-xs text-muted-foreground">
+            Loading invitation details...
+          </div>
+        ) : isRevoked ? (
+          <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive font-medium flex items-center gap-2">
+            <ShieldAlert className="h-4 w-4 shrink-0" />
+            <span>This invitation link has been revoked by the group admin.</span>
+          </div>
+        ) : isExpired ? (
+          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-2">
+            <Clock className="h-4 w-4 shrink-0" />
+            <span>This invitation link has expired. Please ask for a new invite.</span>
+          </div>
+        ) : error ? (
           <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive font-medium flex items-center gap-2">
             <AlertCircle className="h-4 w-4 shrink-0" />
             <span>{error}</span>
@@ -69,16 +123,20 @@ export const JoinGroupView: React.FC = () => {
             <span>Joined {successGroup.name}! Redirecting...</span>
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground">
-            You are signed in as <strong>{profile?.displayName || user?.displayName}</strong>.
-            Click below to accept the invitation.
-          </p>
+          <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 space-y-1.5 text-xs text-left">
+            <p className="text-foreground">
+              Invited by <strong className="font-bold">{inviteData?.creatorName || 'A group member'}</strong>
+            </p>
+            <p className="text-muted-foreground text-[11px]">
+              You will join as <strong className="text-foreground">{profile?.displayName || user?.displayName || 'Member'}</strong>.
+            </p>
+          </div>
         )}
 
         <div className="flex flex-wrap sm:flex-nowrap gap-2 justify-center pt-2">
           <Button
             variant="outline"
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/groups')}
             className="flex-1 sm:flex-initial"
           >
             Cancel
@@ -87,8 +145,8 @@ export const JoinGroupView: React.FC = () => {
             variant="primary"
             isLoading={isLoading}
             onClick={handleJoin}
-            disabled={Boolean(successGroup)}
-            className="flex-1 sm:flex-initial"
+            disabled={isActionDisabled}
+            className="flex-1 sm:flex-initial font-bold"
           >
             Join Group
           </Button>

@@ -68,13 +68,9 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && resource.data.creatorId == request.auth.uid;
     }
 
-    // 4. Groups collection (restricted to authenticated members & creators)
+    // 4. Groups collection (metadata readable by authenticated users; subcollections strictly isolated)
     match /groups/{groupId} {
-      allow read: if isAuthenticated() && (
-        resource == null ||
-        ('memberIds' in resource.data && request.auth.uid in resource.data.memberIds) ||
-        resource.data.createdBy == request.auth.uid
-      );
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated() &&
         request.resource.data.createdBy == request.auth.uid &&
         (
@@ -104,13 +100,14 @@ service cloud.firestore {
           // Joining member adding self with member role
           (memberId == request.auth.uid && request.resource.data.role == 'member')
         );
-        allow update: if isAuthenticated() && isGroupMember(groupId) && (
-          // Role cannot be escalated to owner by regular members
-          request.resource.data.role == resource.data.role || isGroupCreator(groupId)
+        allow update: if isAuthenticated() && (
+          (isGroupMember(groupId) && (request.resource.data.role == resource.data.role || isGroupCreator(groupId))) ||
+          (memberId == request.auth.uid && request.resource.data.role == resource.data.role)
         );
-        allow delete: if isAuthenticated() && isGroupMember(groupId) && (
-          // Group owner cannot be deleted unless by self on group deletion
-          resource.data.role != 'owner' || request.auth.uid == memberId
+        allow delete: if isAuthenticated() && (
+          // Member leaving group (deleting self) OR group member/creator removing non-owner member
+          (memberId == request.auth.uid || isGroupMember(groupId)) &&
+          (resource.data.role != 'owner' || request.auth.uid == memberId)
         );
       }
 
@@ -155,7 +152,10 @@ service cloud.firestore {
           !resource.data.isRevoked &&
           resource.data.expiresAt > request.time.toMillis() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedCount']) &&
-          request.resource.data.usedCount == resource.data.usedCount + 1
+          (
+            (!('usedCount' in resource.data) && request.resource.data.usedCount == 1) ||
+            request.resource.data.usedCount == resource.data.usedCount + 1
+          )
         )
       );
       allow delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;

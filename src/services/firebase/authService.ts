@@ -131,25 +131,40 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 }
 
 /**
- * Permanently deletes user account, their personal expenses, and user document.
+ * Permanently deletes user account, their personal expenses, 1:1 debts, subscriptions, invites, and user document.
  */
 export async function deleteUserAccount(): Promise<void> {
   if (!auth || !auth.currentUser || !db) return
 
   const uid = auth.currentUser.uid
+  const batch = writeBatch(db)
 
   // 1. Delete personal expenses
   const expenseQ = query(collection(db, 'expenses'), where('userId', '==', uid))
-  const snap = await getDocs(expenseQ)
-  const batch = writeBatch(db)
-  snap.docs.forEach((d) => batch.delete(d.ref))
+  const expenseSnap = await getDocs(expenseQ)
+  expenseSnap.docs.forEach((d) => batch.delete(d.ref))
 
-  // 2. Delete user doc
+  // 2. Delete 1:1 direct debts
+  const debtQ = query(collection(db, 'directDebts'), where('creatorId', '==', uid))
+  const debtSnap = await getDocs(debtQ)
+  debtSnap.docs.forEach((d) => batch.delete(d.ref))
+
+  // 3. Delete recurring expenses
+  const recurringQ = query(collection(db, 'recurringExpenses'), where('userId', '==', uid))
+  const recurringSnap = await getDocs(recurringQ)
+  recurringSnap.docs.forEach((d) => batch.delete(d.ref))
+
+  // 4. Delete invites created by user
+  const inviteQ = query(collection(db, 'invites'), where('createdBy', '==', uid))
+  const inviteSnap = await getDocs(inviteQ)
+  inviteSnap.docs.forEach((d) => batch.delete(d.ref))
+
+  // 5. Delete user doc
   const userRef = doc(db, 'users', uid)
   batch.delete(userRef)
 
   await batch.commit()
 
-  // 3. Delete auth account
+  // 6. Delete auth account
   await deleteUser(auth.currentUser)
 }

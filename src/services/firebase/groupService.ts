@@ -519,7 +519,29 @@ export async function createGroupInvite(
 }
 
 /**
- * Validates and redeems an invite code to join a group.
+ * Fetches group invite details for preview before joining.
+ */
+export async function fetchGroupInvite(
+  inviteCode: string
+): Promise<{ invite: GroupInvite; isExpired: boolean; isRevoked: boolean }> {
+  if (!db) throw new Error('Database is not initialized')
+
+  const inviteRef = doc(db, 'invites', inviteCode.trim().toUpperCase())
+  const inviteSnap = await getDoc(inviteRef)
+
+  if (!inviteSnap.exists()) {
+    throw new Error('Invalid invite link or code.')
+  }
+
+  const invite = inviteSnap.data() as GroupInvite
+  const isExpired = Date.now() > invite.expiresAt
+  const isRevoked = Boolean(invite.isRevoked)
+
+  return { invite, isExpired, isRevoked }
+}
+
+/**
+ * Validates and redeems an invite code to join a group using an atomic batch.
  */
 export async function redeemGroupInvite(
   inviteCode: string,
@@ -527,7 +549,8 @@ export async function redeemGroupInvite(
 ): Promise<{ success: boolean; groupName: string; groupId: string; message?: string }> {
   if (!db) throw new Error('Database is not initialized')
 
-  const inviteRef = doc(db, 'invites', inviteCode.trim().toUpperCase())
+  const cleanCode = inviteCode.trim().toUpperCase()
+  const inviteRef = doc(db, 'invites', cleanCode)
   const inviteSnap = await getDoc(inviteRef)
 
   if (!inviteSnap.exists()) {
@@ -554,7 +577,7 @@ export async function redeemGroupInvite(
   const group = groupSnap.data() as Group
 
   // If already a member
-  if (group.memberIds.includes(user.uid)) {
+  if (group.memberIds?.includes(user.uid)) {
     return {
       success: true,
       groupName: group.name,
@@ -563,28 +586,35 @@ export async function redeemGroupInvite(
     }
   }
 
+  const now = Date.now()
   const newMember: GroupMember = {
     userId: user.uid,
     displayName: user.displayName,
     email: user.email,
     photoURL: user.photoURL || null,
     role: 'member',
-    joinedAt: Date.now(),
+    joinedAt: now,
   }
 
-  // 1. Add to group members subcollection
-  await setDoc(doc(db, 'groups', invite.groupId, 'members', user.uid), sanitizeForFirestore(newMember))
+  // Atomic batch commit: member creation, group memberIds update, invite usedCount
+  const batch = writeBatch(db)
 
-  // 2. Add uid to group memberIds array
-  await updateDoc(groupRef, {
+  // 1. Add to group members subcollection
+  const memberRef = doc(db, 'groups', invite.groupId, 'members', user.uid)
+  batch.set(memberRef, sanitizeForFirestore(newMember))
+
+  // 2. Add uid to group memberIds array and update timestamp
+  batch.update(groupRef, {
     memberIds: arrayUnion(user.uid),
-    updatedAt: Date.now(),
+    updatedAt: now,
   })
 
   // 3. Increment used count
-  await updateDoc(inviteRef, {
+  batch.update(inviteRef, {
     usedCount: (invite.usedCount || 0) + 1,
   })
+
+  await batch.commit()
 
   // 4. Record audit log
   await recordAuditLog({
@@ -609,17 +639,24 @@ export async function redeemGroupInvite(
 }
 
 /**
- * Removes a user from a group.
+ * Removes a user from a group using an atomic batch.
  */
 export async function leaveGroup(groupId: string, userId: string): Promise<void> {
   if (!db) return
 
-  // Remove from memberIds
-  await updateDoc(doc(db, 'groups', groupId), {
+  const now = Date.now()
+  const batch = writeBatch(db)
+
+  // 1. Remove from memberIds in group doc
+  const groupRef = doc(db, 'groups', groupId)
+  batch.update(groupRef, {
     memberIds: arrayRemove(userId),
-    updatedAt: Date.now(),
+    updatedAt: now,
   })
 
-  // Delete from members subcollection
-  await deleteDoc(doc(db, 'groups', groupId, 'members', userId))
+  // 2. Delete from members subcollection
+  const memberRef = doc(db, 'groups', groupId, 'members', userId)
+  batch.delete(memberRef)
+
+  await batch.commit()
 }
